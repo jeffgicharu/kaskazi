@@ -21,9 +21,9 @@ set -euo pipefail
 BASE=/var/www/kaskazi.jeffgicharu.com
 SITE=https://kaskazi.jeffgicharu.com
 DB=kaskazi
-# The Cloudflare origin certificate this server's sites share (confirmed by Portfolio).
-ORIGIN_CERT="${ORIGIN_CERT:-}"
-ORIGIN_KEY="${ORIGIN_KEY:-}"
+# The Cloudflare origin certificate this server's sites share (*.jeffgicharu.com, valid to 2041).
+ORIGIN_CERT="${ORIGIN_CERT:-/etc/ssl/cloudflare/jeffgicharu.com.pem}"
+ORIGIN_KEY="${ORIGIN_KEY:-/etc/ssl/cloudflare/jeffgicharu.com.key}"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 case "$HERE" in

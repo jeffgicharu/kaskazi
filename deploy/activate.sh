@@ -34,6 +34,13 @@ fi
 release="$BASE/releases/$sha"
 short="${sha:0:7}"
 
+# The upload key can write anything into releases/, including a symlink named like a sha. A
+# release must be a real folder.
+if [[ ! -d "$release" || -L "$release" ]]; then
+    echo "Release $short is not a folder in $BASE/releases." >&2
+    exit 66
+fi
+
 # One activation at a time.
 exec 9>"$BASE/.activate.lock"
 flock -n 9 || { echo "Another activation is running." >&2; exit 75; }
@@ -58,6 +65,28 @@ if [[ "$(cat "$release/REVISION")" != "$sha" ]]; then
 fi
 if ! (cd "$release" && sha256sum --quiet --strict -c MANIFEST.sha256); then
     echo "Release $short does not match its manifest." >&2
+    exit 66
+fi
+# Nothing in it may be writable by anyone but deploy, and every link must stay inside it. The
+# services read it as other users, so the runtime must be readable and executable by others
+# (CI uploads with --chmod=go+rX,go-w).
+writable="$(find "$release" ! -type l -perm /022 -print -quit)"
+if [[ -n "$writable" ]]; then
+    echo "Release $short has a group- or world-writable file: ${writable#"$release"/}" >&2
+    exit 66
+fi
+while IFS= read -r -d '' link; do
+    target="$(readlink -f -- "$link" || true)"
+    if [[ "$target" != "$release"/* ]]; then
+        echo "Release $short has a link leading outside it: ${link#"$release"/}" >&2
+        exit 66
+    fi
+done < <(find "$release" -type l -print0)
+python_bin="$(readlink -f -- "$release/python/bin/python3")"
+if [[ -z "$(find "$python_bin" -perm -o=rx -print -quit)" ]] \
+    || [[ -n "$(find "$release" ! -type l ! -perm -o=r -print -quit)" ]] \
+    || [[ -n "$(find "$release" -type d ! -perm -o=x -print -quit)" ]]; then
+    echo "Release $short isn't readable by the services' users (upload with --chmod=go+rX,go-w)." >&2
     exit 66
 fi
 if ! grep -q '<meta name="robots" content="noindex, nofollow">' "$release/web/index.html"; then
@@ -204,7 +233,10 @@ if ! sudo -n nginx -t >/dev/null 2>&1; then
     restore_nginx || true
     abandon "nginx refused the switch. Visitors stay on the release before."
 fi
-sudo -n systemctl reload nginx
+if ! sudo -n systemctl reload nginx; then
+    restore_nginx || true
+    abandon "nginx would not reload for the switch. Its files are back as they were."
+fi
 
 # Through nginx, from this machine, under the public name. The certificate is the Cloudflare
 # origin certificate, which curl doesn't know, hence --insecure; nothing leaves this machine.
@@ -212,35 +244,40 @@ fetch() {
     curl --silent --show-error --insecure --max-time 15 --resolve "$HOST:443:127.0.0.1" "$@"
 }
 through_nginx() {
-    local headers asset stream
+    local headers asset stream page
+    page="$(mktemp)"
+    # The page copy is removed on every way out of this function.
+    trap 'rm -f -- "$page"; trap - RETURN' RETURN
     for _ in $(seq 1 10); do
         fetch --head "https://$HOST/api/healthz" 2>/dev/null | grep -qi "^x-release: $sha" && break
         sleep 1
     done
     fetch --head "https://$HOST/api/healthz" | grep -qi "^x-release: $sha" || { echo "The API through nginx isn't $short." >&2; return 1; }
     for path in / /chat /console /no-such-page; do
-        headers="$(fetch --fail --dump-header - --output /tmp/kaskazi-page.$$ "https://$HOST$path")" || { echo "$path did not load." >&2; return 1; }
+        headers="$(fetch --fail --dump-header - --output "$page" "https://$HOST$path")" || { echo "$path did not load." >&2; return 1; }
         grep -qi '^x-robots-tag: noindex, nofollow' <<<"$headers" || { echo "$path has no noindex header." >&2; return 1; }
         grep -qi '^content-security-policy:' <<<"$headers" || { echo "$path has no CSP header." >&2; return 1; }
-        cmp -s /tmp/kaskazi-page.$$ "$release/web/index.html" || { echo "$path is not release $short's page." >&2; return 1; }
+        cmp -s "$page" "$release/web/index.html" || { echo "$path is not release $short's page." >&2; return 1; }
     done
-    rm -f /tmp/kaskazi-page.$$
     fetch --head "https://$HOST/api/healthz" | grep -qi '^x-robots-tag: noindex, nofollow' || { echo "The API has no noindex header." >&2; return 1; }
     asset=""
     for f in "$release"/web/assets/*.js; do asset="$(basename "$f")"; break; done
     [[ -n "$asset" ]] || { echo "Release $short has no scripts in web/assets." >&2; return 1; }
     fetch --fail --output /dev/null "https://$HOST/assets/$asset" || { echo "assets/$asset did not load." >&2; return 1; }
-    # An event stream opens with a retry line. It stays open, so curl is cut off after a few seconds.
+    # An event stream opens with a retry line, also for a visitor who hasn't signed in. It stays
+    # open, so curl is cut off after a few seconds.
     stream="$(fetch --max-time 4 "https://$HOST/api/stream" 2>/dev/null || true)"
     grep -q '^retry:' <<<"$stream" || { echo "Event streams don't get through nginx." >&2; return 1; }
 }
 
 echo "Checking release $short through nginx"
 if ! through_nginx; then
-    if [[ -n "$first_release" ]]; then
-        abandon "Release $short failed through nginx, and there is no release before it to go back to."
-    fi
+    # For a first release, the files before named the placeholder, which is where visitors should
+    # go back to.
     if restore_nginx; then
+        if [[ -n "$first_release" ]]; then
+            abandon "Release $short failed through nginx. The site is back on its placeholder page."
+        fi
         abandon "Release $short failed through nginx. Visitors are back on the release before."
     fi
     abandon "Release $short failed through nginx and nginx could not be pointed back. Look now."
