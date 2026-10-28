@@ -84,6 +84,7 @@ class AnthropicProvider:
             "system": _system(request.system),
             "messages": [_message(m, documents) for m in request.messages],
             "output_config": {"effort": settings.effort},
+            "thinking": {"type": "adaptive" if settings.thinking else "disabled"},
             "cache_control": {"type": "ephemeral"},
         }
         if request.tools:

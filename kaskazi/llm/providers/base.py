@@ -45,6 +45,9 @@ class CallSettings:
     effort: str
     max_tokens: int
     timeout_s: float
+    # Claude only: adaptive thinking (the model's default) or none. A classifier answering to a
+    # schema gains little from thinking and waits for it on every call.
+    thinking: bool = True
 
 
 @dataclass

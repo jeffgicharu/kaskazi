@@ -15,6 +15,10 @@ fallback_timeout_s = 10
 [routes."assistant.router"]
 primary = "claude-haiku-5-5"
 effort = "low"
+# Thinking off: on 49 labelled messages it was as fast (p50 1,513 ms against 1,537 ms) and as
+# accurate (no misses against two) as adaptive thinking, which at low effort rarely thinks here;
+# off keeps a harder message from waiting on it. evals/reports/router-2026-10-29.json
+thinking = false
 max_tokens = 1024
 timeout_s = 4
 fallback = "gpt-5.4-mini"

@@ -514,18 +514,18 @@ def _decide(router: dict[str, Any], risk: str) -> str:
     return "answer"
 
 
-async def _route(
-    deps: TurnDeps, inp: TurnInput, state: TurnState, budget: BudgetContext, masked_text: str
-) -> tuple[dict[str, Any] | GatewayRefusal, bool]:
-    recent = [m for m in state.history if m.role in ("user", "assistant")][-4:]
-    lines = []
-    for m in recent:
-        said = " ".join(p.text for p in m.parts if isinstance(p, TextPart))
-        if said:
-            lines.append(f"{'Customer' if m.role == 'user' else 'Assistant'}: {said[:400]}")
-    context = "\n".join(lines) or "(this is the first message)"
+def router_request(
+    context_lines: list[str],
+    masked_text: str,
+    budget: BudgetContext,
+    request_id: str,
+    *,
+    simulate_primary_outage: bool = False,
+) -> GenerateRequest:
+    """The router's call: the last few lines of the conversation and the new message."""
+    context = "\n".join(context_lines) or "(this is the first message)"
     router_prompt = prompt("assistant.router")
-    request = GenerateRequest(
+    return GenerateRequest(
         purpose=Purpose.ROUTER,
         route="assistant.router",
         prompt_ref=router_prompt.ref,
@@ -540,7 +540,25 @@ async def _route(
         ],
         output_schema=ROUTER_SCHEMA,
         budget=budget,
-        request_id=f"{state.turn_id}-route",
+        request_id=request_id,
+        simulate_primary_outage=simulate_primary_outage,
+    )
+
+
+async def _route(
+    deps: TurnDeps, inp: TurnInput, state: TurnState, budget: BudgetContext, masked_text: str
+) -> tuple[dict[str, Any] | GatewayRefusal, bool]:
+    recent = [m for m in state.history if m.role in ("user", "assistant")][-4:]
+    lines = []
+    for m in recent:
+        said = " ".join(p.text for p in m.parts if isinstance(p, TextPart))
+        if said:
+            lines.append(f"{'Customer' if m.role == 'user' else 'Assistant'}: {said[:400]}")
+    request = router_request(
+        lines,
+        masked_text,
+        budget,
+        f"{state.turn_id}-route",
         simulate_primary_outage=inp.simulate_primary_outage,
     )
     result = await deps.gateway.generate(request)

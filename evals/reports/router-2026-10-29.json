@@ -1,0 +1,93 @@
+{
+  "run_on": "2026-10-28T23:44:39+00:00",
+  "cases": 49,
+  "variants": {
+    "haiku-adaptive": {
+      "model": "claude-haiku-5-5",
+      "effort": "low",
+      "thinking": true,
+      "calls": 49,
+      "errors": 0,
+      "accuracy": {
+        "follow_up_spelled_out": 1.0,
+        "injection_caught": 1.0,
+        "intent": 0.977,
+        "no_false_injection": 0.977,
+        "sensitive": 1.0
+      },
+      "misses": {
+        "follow_up_spelled_out": [],
+        "injection_caught": [],
+        "intent": [
+          "r-s03"
+        ],
+        "no_false_injection": [
+          "r-i06"
+        ],
+        "sensitive": []
+      },
+      "ms_p50": 1537,
+      "ms_p90": 1861,
+      "ms_mean": 1530,
+      "output_tokens_mean": 71,
+      "cost_usd": 0.002776
+    },
+    "haiku-off": {
+      "model": "claude-haiku-5-5",
+      "effort": "low",
+      "thinking": false,
+      "calls": 49,
+      "errors": 0,
+      "accuracy": {
+        "follow_up_spelled_out": 1.0,
+        "injection_caught": 1.0,
+        "intent": 1.0,
+        "no_false_injection": 1.0,
+        "sensitive": 1.0
+      },
+      "misses": {
+        "follow_up_spelled_out": [],
+        "injection_caught": [],
+        "intent": [],
+        "no_false_injection": [],
+        "sensitive": []
+      },
+      "ms_p50": 1513,
+      "ms_p90": 1982,
+      "ms_mean": 1573,
+      "output_tokens_mean": 71,
+      "cost_usd": 0.002788
+    },
+    "gpt-mini": {
+      "model": "gpt-5.4-mini",
+      "effort": "low",
+      "thinking": true,
+      "calls": 49,
+      "errors": 0,
+      "accuracy": {
+        "follow_up_spelled_out": 1.0,
+        "injection_caught": 1.0,
+        "intent": 0.955,
+        "no_false_injection": 0.977,
+        "sensitive": 1.0
+      },
+      "misses": {
+        "follow_up_spelled_out": [],
+        "injection_caught": [],
+        "intent": [
+          "r-q15",
+          "r-s03"
+        ],
+        "no_false_injection": [
+          "r-i06"
+        ],
+        "sensitive": []
+      },
+      "ms_p50": 1466,
+      "ms_p90": 1844,
+      "ms_mean": 1528,
+      "output_tokens_mean": 95,
+      "cost_usd": 0.054038
+    }
+  }
+}

@@ -27,9 +27,12 @@ class Route:
     fallback: str | None
     fallback_effort: str | None
     fallback_timeout_s: float | None
+    thinking: bool = True
 
     def primary_settings(self) -> CallSettings:
-        return CallSettings(self.primary, self.effort, self.max_tokens, self.timeout_s)
+        return CallSettings(
+            self.primary, self.effort, self.max_tokens, self.timeout_s, thinking=self.thinking
+        )
 
     def fallback_settings(self) -> CallSettings | None:
         if self.fallback is None:
@@ -61,6 +64,7 @@ def load_routes(path: Path = ROUTES_FILE) -> tuple[dict[str, Route], EmbeddingRo
             fallback=r.get("fallback"),
             fallback_effort=r.get("fallback_effort"),
             fallback_timeout_s=r.get("fallback_timeout_s"),
+            thinking=r.get("thinking", True),
         )
         for name, r in data["routes"].items()
     }
