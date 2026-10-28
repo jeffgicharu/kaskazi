@@ -1,0 +1,70 @@
+# The Kaskazi API, one instance per slot: kaskazi-api@blue (port 8800) and kaskazi-api@green (8801).
+#
+# It owns the visitor copies, the assistant's workflow, the tools and the audit trail. It holds
+# no provider keys and cannot reach the internet: model calls go to its slot's gateway on
+# 127.0.0.1. nginx sends /api/ here; the web pages are static files nginx serves itself.
+
+[Unit]
+Description=Kaskazi API (%i slot)
+After=network.target postgresql.service kaskazi-gateway@%i.service
+Wants=kaskazi-gateway@%i.service
+ConditionPathExists=/var/www/kaskazi.jeffgicharu.com/slots/%i/REVISION
+
+[Service]
+Type=exec
+User=kaskazi-api
+Group=kaskazi-api
+EnvironmentFile=/var/www/kaskazi.jeffgicharu.com/shared/env/api.env
+EnvironmentFile=/var/www/kaskazi.jeffgicharu.com/shared/env/%i.ports
+WorkingDirectory=/var/www/kaskazi.jeffgicharu.com/shared/data
+# -I: ignore PYTHON* variables and the working directory; the release's own runtime only.
+ExecStart=/var/www/kaskazi.jeffgicharu.com/slots/%i/python/bin/python3 -I -m kaskazi.api serve
+Restart=on-failure
+RestartSec=3
+# On SIGTERM uvicorn stops accepting, finishes requests in hand and closes event streams, so
+# browsers reconnect to the live slot.
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# Two slots overlap for about a minute during a release. The probe on 29 October measured 84 MB
+# after this process's imports; the API is held under MemoryHigh and killed only at MemoryMax.
+MemoryHigh=220M
+MemoryMax=256M
+MemorySwapMax=0
+TasksMax=64
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Nothing outside this machine: PostgreSQL and the gateway are both on 127.0.0.1.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+# Uploaded sample documents are readable by this service's group only.
+UMask=0027
+ReadWritePaths=/var/www/kaskazi.jeffgicharu.com/shared/data
+
+[Install]
+WantedBy=multi-user.target

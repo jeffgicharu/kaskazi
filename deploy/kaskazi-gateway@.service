@@ -1,0 +1,80 @@
+# The Kaskazi model gateway, one instance per slot: kaskazi-gateway@blue (port 8802) and
+# kaskazi-gateway@green (8803).
+#
+# The only process that holds the model providers' keys and the only one allowed out: to
+# Anthropic's API and to OpenAI's, nowhere else. It is never reachable through nginx; only its
+# slot's API calls it, on 127.0.0.1, with a token. It writes no files.
+
+[Unit]
+Description=Kaskazi model gateway (%i slot)
+After=network-online.target postgresql.service
+Wants=network-online.target
+ConditionPathExists=/var/www/kaskazi.jeffgicharu.com/slots/%i/REVISION
+
+[Service]
+Type=exec
+User=kaskazi-gw
+Group=kaskazi-gw
+EnvironmentFile=/var/www/kaskazi.jeffgicharu.com/shared/env/gateway.env
+EnvironmentFile=/var/www/kaskazi.jeffgicharu.com/shared/env/%i.ports
+WorkingDirectory=/
+ExecStart=/var/www/kaskazi.jeffgicharu.com/slots/%i/python/bin/python3 -I -m kaskazi.gateway serve
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# The probe on 29 October measured 99.6 MB after this process's imports (both SDKs).
+MemoryHigh=130M
+MemoryMax=160M
+MemorySwapMax=0
+TasksMax=48
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+# Out to the two model providers only. Name resolution goes to systemd-resolved on 127.0.0.53,
+# which localhost covers. The clients also pin their hosts in code and refuse redirects.
+#
+# Anthropic's published API addresses, read on 29 October 2026 from
+# https://platform.claude.com/docs/en/api/ip-addresses (api.anthropic.com resolved to 160.79.104.10).
+#
+# OpenAI's API is served through Cloudflare (api.openai.com resolved to 162.159.140.245 and
+# 172.66.0.243), so Cloudflare's published ranges are allowed, read on 29 October 2026 from
+# https://www.cloudflare.com/ips-v4 and https://www.cloudflare.com/ips-v6. They are broad: they
+# let this process reach any site Cloudflare fronts. A bank would put a forward proxy with an
+# allow-list of hosts in front instead; the threat model records this.
+IPAddressDeny=any
+IPAddressAllow=localhost
+IPAddressAllow=160.79.104.0/23 2607:6bc0::/48
+IPAddressAllow=173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18
+IPAddressAllow=108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17
+IPAddressAllow=162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22
+IPAddressAllow=2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32
+IPAddressAllow=2a06:98c0::/29 2c0f:f248::/32
+
+[Install]
+WantedBy=multi-user.target
