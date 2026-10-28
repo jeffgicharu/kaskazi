@@ -7,8 +7,8 @@ import type { Persona, Session } from "../api/types";
 import { DemoBanner, WindLines, Wordmark } from "../components/Brand";
 
 const ROLES = [
-  { key: "agent", title: "Agent", text: "Take conversations the assistant hands over, with the summary and what it looked at." },
-  { key: "ai_lead", title: "AI lead", text: "Read the audit trail of every turn, verify its hash chain, and switch on a provider outage." },
+  { key: "agent", title: "Agent", action: "Open as an agent", text: "Take conversations the assistant hands over, with the summary and what it looked at." },
+  { key: "ai_lead", title: "AI lead", action: "Open as the AI lead", text: "Read the audit trail of every turn, verify its hash chain, and switch on a provider outage." },
 ] as const;
 
 export function Landing() {
@@ -100,7 +100,7 @@ export function Landing() {
                 <h3>{r.title}</h3>
                 <p>{r.text}</p>
                 <button type="button" className="btn btn-quiet" disabled={!signedIn || enter.isPending} onClick={() => enter.mutate(r.key)}>
-                  Open as {r.title.toLowerCase()}
+                  {r.action}
                 </button>
               </div>
             ))}
