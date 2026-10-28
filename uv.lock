@@ -578,7 +578,6 @@ dependencies = [
     { name = "asyncpg" },
     { name = "cryptography" },
     { name = "fastapi" },
-    { name = "fpdf2" },
     { name = "httptools" },
     { name = "httpx" },
     { name = "openai" },
@@ -591,6 +590,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "fpdf2" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pip-audit" },
@@ -605,7 +605,6 @@ requires-dist = [
     { name = "asyncpg" },
     { name = "cryptography" },
     { name = "fastapi" },
-    { name = "fpdf2" },
     { name = "httptools", specifier = ">=0.9.0" },
     { name = "httpx" },
     { name = "openai" },
@@ -618,6 +617,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fpdf2", specifier = ">=2.8.9" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pip-audit" },

@@ -1,0 +1,235 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  KASKAZI_TEST_SUPERUSER_DSN: postgresql://postgres:ci-only@127.0.0.1:5432/postgres
+
+jobs:
+  checks:
+    name: Lint, types, tests
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Python dependencies
+        run: uv sync --frozen
+
+      - name: Lint and format
+        run: |
+          uv run ruff check kaskazi tests evals
+          uv run ruff format --check kaskazi tests evals
+
+      - name: Types (mypy --strict)
+        run: uv run mypy
+
+      - name: Tests (unit, integration, the assistant end to end, release journeys)
+        run: uv run pytest -q
+
+      - name: Known vulnerabilities in the Python dependencies a release ships
+        run: |
+          uv export --frozen --no-emit-project --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
+          uv run pip-audit -r "$RUNNER_TEMP/requirements.txt" --disable-pip --progress-spinner off
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Web app checks
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm audit --prod --audit-level high
+
+      - name: No secrets in the history
+        run: |
+          cd "$RUNNER_TEMP"
+          base=https://github.com/gitleaks/gitleaks/releases/download/v8.30.1
+          curl -fsSL -o gitleaks.tgz "$base/gitleaks_8.30.1_linux_x64.tar.gz"
+          curl -fsSL -o checksums.txt "$base/gitleaks_8.30.1_checksums.txt"
+          grep linux_x64.tar.gz checksums.txt | awk '{print $1"  gitleaks.tgz"}' | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks
+          ./gitleaks git --redact --no-banner "$GITHUB_WORKSPACE"
+
+  release:
+    name: Build, check on the server's CPU, walk
+    needs: checks
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Build the release
+        run: scripts/build-release.sh "$GITHUB_SHA" release
+
+      # The server's processor has the baseline x86-64 instructions (SSE3 at most). QEMU's
+      # qemu64 model has the same baseline, so a wheel built for newer instructions fails here.
+      # The server runs the same check again, as each service's user, before going live.
+      - name: Every compiled module imports on a baseline x86-64 CPU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user
+          reported="$(qemu-x86_64 -cpu qemu64 release/python/bin/python3 -I -m kaskazi.release version)"
+          test "$reported" = "$GITHUB_SHA"
+
+      - name: Start the release (stand-in model providers)
+        env:
+          DB: postgresql://%s:ci-only@127.0.0.1:5432/kaskazi
+        run: |
+          psql "postgresql://postgres:ci-only@127.0.0.1:5432/postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE kaskazi_owner LOGIN NOINHERIT CONNECTION LIMIT 3 PASSWORD 'ci-only';
+          CREATE ROLE kaskazi_app LOGIN NOINHERIT CONNECTION LIMIT 12 PASSWORD 'ci-only';
+          CREATE ROLE kaskazi_gateway LOGIN NOINHERIT CONNECTION LIMIT 6 PASSWORD 'ci-only';
+          CREATE DATABASE kaskazi OWNER kaskazi_owner;
+          SQL
+          psql "postgresql://postgres:ci-only@127.0.0.1:5432/kaskazi" -v ON_ERROR_STOP=1 \
+            -c "CREATE EXTENSION vector" -c "REVOKE ALL ON DATABASE kaskazi FROM PUBLIC" \
+            -c "GRANT CONNECT ON DATABASE kaskazi TO kaskazi_owner, kaskazi_app, kaskazi_gateway"
+          export KASKAZI_OWNER_DATABASE_URL="$(printf "$DB" kaskazi_owner)"
+          release/python/bin/python3 -I -m kaskazi.release migrate
+          release/python/bin/python3 -I -m kaskazi.release load --release "$GITHUB_SHA"
+
+          secret="$(openssl rand -hex 32)"; token="ci-$(openssl rand -hex 16)"
+          {
+            echo "KASKAZI_SECRET=$secret"
+            echo "KASKAZI_GATEWAY_TOKEN=$token"
+          } >> "$GITHUB_ENV"
+          KASKAZI_GATEWAY_TOKEN="$token" KASKAZI_GATEWAY_PORT=8802 KASKAZI_GATEWAY_FAKE_PROVIDERS=1 \
+            KASKAZI_GATEWAY_DATABASE_URL="$(printf "$DB" kaskazi_gateway)" \
+            release/python/bin/python3 -I -m kaskazi.gateway serve > "$RUNNER_TEMP/gateway.log" 2>&1 &
+          KASKAZI_SITE_URL=http://127.0.0.1:4173 KASKAZI_DATABASE_URL="$(printf "$DB" kaskazi_app)" \
+            KASKAZI_SECRET="$secret" KASKAZI_VAULT_KEY="$(openssl rand -base64 32)" \
+            KASKAZI_GATEWAY_URL=http://127.0.0.1:8802 KASKAZI_GATEWAY_TOKEN="$token" KASKAZI_API_PORT=8800 \
+            KASKAZI_COPIES_PER_HOUR=1000 KASKAZI_COPIES_PER_DAY=1000 \
+            release/python/bin/python3 -I -m kaskazi.api serve > "$RUNNER_TEMP/api.log" 2>&1 &
+          for _ in $(seq 1 40); do
+            curl -fsI http://127.0.0.1:8800/api/healthz | grep -qi "^x-release: $GITHUB_SHA" && break
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:8800/api/healthz
+
+      - name: The release checks, as the server runs them
+        run: |
+          release/python/bin/python3 -I -m kaskazi.release check --api http://127.0.0.1:8800 \
+            --gateway http://127.0.0.1:8802 --release "$GITHUB_SHA" --stand-in-providers
+
+      - name: The journeys in Chromium, Firefox, WebKit and a phone, with axe on every page
+        working-directory: web
+        env:
+          CI: "1"
+        run: |
+          pnpm exec playwright install --with-deps chromium firefox webkit
+          pnpm exec vite preview --host 127.0.0.1 --port 4173 --outDir ../release/web > "$RUNNER_TEMP/preview.log" 2>&1 &
+          for _ in $(seq 1 40); do curl -fs http://127.0.0.1:4173/ > /dev/null && break; sleep 0.5; done
+          pnpm e2e
+
+      - name: Logs
+        if: failure()
+        run: tail -n 80 "$RUNNER_TEMP"/*.log
+
+      - name: Keep the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+
+      - name: Pack the release
+        run: tar -cf release.tar release
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: release.tar
+          retention-days: 3
+          compression-level: 6
+
+  deploy:
+    name: Upload and activate
+    needs: release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+
+      - name: Deploy keys and the server's pinned host key
+        env:
+          UPLOAD_KEY: ${{ secrets.KASKAZI_UPLOAD_KEY }}
+          ACTIVATE_KEY: ${{ secrets.KASKAZI_ACTIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.KASKAZI_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$UPLOAD_KEY" > ~/.ssh/upload && chmod 600 ~/.ssh/upload
+          printf '%s\n' "$ACTIVATE_KEY" > ~/.ssh/activate && chmod 600 ~/.ssh/activate
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload
+        run: |
+          tar -xf release.tar
+          rsync -rlpt -z --chmod=go+rX,go-w \
+            -e "ssh -i $HOME/.ssh/upload -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            release/ "deploy@SERVER_ADDRESS:$GITHUB_SHA/"
+
+      - name: Activate
+        run: |
+          ssh -i "$HOME/.ssh/activate" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            deploy@SERVER_ADDRESS "$GITHUB_SHA"

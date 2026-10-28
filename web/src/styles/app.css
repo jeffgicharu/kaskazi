@@ -370,6 +370,12 @@
   min-height: calc(100dvh - 140px);
 }
 
+.thread-log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .thread {
   flex: 1;
   list-style: none;

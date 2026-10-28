@@ -141,7 +141,8 @@ function Chat({ session }: { session: Extract<Session, { signed_in: true }> }) {
           </svg>
         </button>
         <main className="chat-main" id="main" aria-label="Conversation with the Kaskazi assistant">
-          <ol className="thread" role="log" aria-live="polite" aria-relevant="additions" aria-label="Messages">
+          <div className="thread-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Messages">
+          <ol className="thread">
             <li className="msg msg--assistant msg--welcome">
               <div className="bubble bubble--assistant">
                 <p>
@@ -176,6 +177,7 @@ function Chat({ session }: { session: Extract<Session, { signed_in: true }> }) {
               </li>
             ) : null}
           </ol>
+          </div>
           <p className="progress" role="status" aria-live="polite">
             {send.isPending ? (
               <>

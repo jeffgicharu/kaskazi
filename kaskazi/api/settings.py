@@ -16,6 +16,8 @@ class Settings:
     gateway_token: str
     port: int
     secure_cookies: bool
+    copies_per_hour: int = 3
+    copies_per_day: int = 10
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -30,4 +32,8 @@ class Settings:
             gateway_token=env["KASKAZI_GATEWAY_TOKEN"],
             port=int(env.get("KASKAZI_API_PORT", "8800")),
             secure_cookies=site.startswith("https://"),
+            # New sample copies per visitor address. Development and CI raise these, since every
+            # local test comes from 127.0.0.1.
+            copies_per_hour=int(env.get("KASKAZI_COPIES_PER_HOUR", "3")),
+            copies_per_day=int(env.get("KASKAZI_COPIES_PER_DAY", "10")),
         )

@@ -9,7 +9,6 @@ dependencies = [
     "asyncpg",
     "cryptography",
     "fastapi",
-    "fpdf2",
     "httptools>=0.9.0",
     "httpx",
     "openai",
@@ -26,6 +25,7 @@ kaskazi-gateway = "kaskazi.gateway.cli:main"
 
 [dependency-groups]
 dev = [
+    "fpdf2>=2.8.9",
     "hypothesis",
     "mypy",
     "pip-audit",

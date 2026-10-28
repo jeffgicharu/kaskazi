@@ -15,6 +15,11 @@ export default defineConfig({
     port: 5173,
     proxy: { "/api": { target: "http://127.0.0.1:8800", changeOrigin: false } },
   },
+  // The browser tests run against the built app, with the API behind the same proxy.
+  preview: {
+    port: 4173,
+    proxy: { "/api": { target: "http://127.0.0.1:8800", changeOrigin: false } },
+  },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],

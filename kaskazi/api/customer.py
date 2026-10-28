@@ -30,8 +30,6 @@ from kaskazi.tools.executor import Executor
 
 router = APIRouter(prefix="/api")
 Svc = Annotated[Services, Depends(services)]
-COPIES_PER_HOUR = 3
-COPIES_PER_DAY = 10
 # A rough cost of one answered question, for the "about N questions left" hint (measured later).
 TYPICAL_TURN_USD = 0.0012
 
@@ -93,7 +91,7 @@ async def start(body: NewSession, request: Request, response: Response, svc: Svc
         day = await conn.fetchval(
             "SELECT app.copies_from_address($1, now() - interval '1 day')", address
         )
-    if hour >= COPIES_PER_HOUR or day >= COPIES_PER_DAY:
+    if hour >= svc.settings.copies_per_hour or day >= svc.settings.copies_per_day:
         raise HTTPException(
             status_code=429,
             detail="You've started a lot of sample copies. Please carry on with the one you have, or try again later.",
