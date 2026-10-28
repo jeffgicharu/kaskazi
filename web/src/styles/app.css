@@ -317,14 +317,19 @@
   flex-direction: column;
 }
 
+/* The demonstration band and the header stay on screen together, at every scroll position:
+   nothing on an app page may read as a real bank, even deep in a conversation. */
+.app-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
 .app-header {
   width: 100%;
   border-bottom: 1px solid var(--line);
   max-width: none;
   background: color-mix(in srgb, var(--paper) 92%, transparent);
-  position: sticky;
-  top: 0;
-  z-index: 5;
   backdrop-filter: blur(6px);
 }
 
@@ -833,6 +838,30 @@
   font-weight: 600;
 }
 
+.card-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.card-status--active {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.card-status--blocked {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.card-status--cancelled {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
 .ledger-row--strong dd {
   font-family: var(--font-display);
   font-size: 1.15rem;
@@ -920,7 +949,7 @@
     display: grid;
     order: 0;
     position: sticky;
-    top: 84px;
+    top: 116px; /* below the band and the header */
   }
 
   .rail-toggle {
@@ -1114,6 +1143,19 @@
   background: var(--paper);
 }
 
+/* On a phone the console's header wraps to three lines; only the band stays on screen there. */
+@media (max-width: 719px) {
+  .console-shell .app-top {
+    display: contents;
+  }
+
+  .console-shell .demo-banner {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+}
+
 .console-header {
   display: flex;
   align-items: center;
@@ -1121,6 +1163,7 @@
   gap: var(--space-3) var(--space-5);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--line);
+  background: var(--paper);
 }
 
 .console-title {

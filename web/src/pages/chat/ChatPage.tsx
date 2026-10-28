@@ -10,6 +10,9 @@ import { money, time } from "../../lib/format";
 import { MessageView } from "./Messages";
 import { SourceDrawer } from "./SourceDrawer";
 
+// What the core-banking service says about each card, in the customer's words.
+const CARD_STATUS: Record<string, string> = { active: "Active", blocked: "Blocked", cancelled: "Cancelled" };
+
 const SUGGESTIONS = [
   "How much does it cost to send KES 5,000 to mobile money?",
   "What's my balance?",
@@ -106,25 +109,27 @@ function Chat({ session }: { session: Extract<Session, { signed_in: true }> }) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#composer">Skip to the message box</a>
-      <DemoBanner />
-      <header className="app-header">
-        <Wordmark to="/" />
-        <div className="app-header-meta">
-          <span className="who">
-            <span className="wide-only">Signed in as </span>
-            <strong>{session.first_name}</strong> <span className="muted wide-only">(sample customer)</span>
-          </span>
-          {session.questions_left_today !== null ? (
-            <span className="chip" title="Today's allowance for this demonstration">
-              <span className="wide-only">about {session.questions_left_today} questions left today</span>
-              <span className="narrow-only">{session.questions_left_today} left</span>
+      <div className="app-top">
+        <DemoBanner />
+        <header className="app-header">
+          <Wordmark to="/" />
+          <div className="app-header-meta">
+            <span className="who">
+              <span className="wide-only">Signed in as </span>
+              <strong>{session.first_name}</strong> <span className="muted wide-only">(sample customer)</span>
             </span>
-          ) : null}
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => void leave()}>
-            Leave
-          </button>
-        </div>
-      </header>
+            {session.questions_left_today !== null ? (
+              <span className="chip" title="Today's allowance for this demonstration">
+                <span className="wide-only">about {session.questions_left_today} questions left today</span>
+                <span className="narrow-only">{session.questions_left_today} left</span>
+              </span>
+            ) : null}
+            <button type="button" className="btn btn-quiet btn-small" onClick={() => void leave()}>
+              Leave
+            </button>
+          </div>
+        </header>
+      </div>
 
       <div className="chat-layout">
         <button
@@ -270,6 +275,7 @@ function QuickActions({
       setBlocking(false);
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
+      await queryClient.invalidateQueries({ queryKey: ["overview"] });
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : "That didn't work."),
   });
@@ -286,6 +292,16 @@ function QuickActions({
               {a.product.replace("Kaskazi ", "")} <span className="muted">{a.number}</span>
             </dt>
             <dd className="amount">{money(a.balance, a.currency)}</dd>
+          </div>
+        ))}
+        {(overview?.cards ?? []).map((c) => (
+          <div key={c.ref} className="ledger-row">
+            <dt>
+              {c.kind === "credit" ? "Credit card" : "Debit card"} <span className="muted tabular">••••{c.last4}</span>
+            </dt>
+            <dd>
+              <span className={`card-status card-status--${c.status}`}>{CARD_STATUS[c.status] ?? c.status}</span>
+            </dd>
           </div>
         ))}
       </dl>

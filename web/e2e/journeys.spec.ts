@@ -22,6 +22,14 @@ async function startAsAmina(page: Page) {
   await expect(page.getByText(/Hello Amina/)).toBeVisible();
 }
 
+async function bannerOnScreen(page: Page, where: string) {
+  const box = await page.getByRole("note").filter({ hasText: "Demonstration" }).boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  if (box === null) throw new Error(`${where}: no demonstration band`);
+  expect(box.y, `${where}: the band is above the screen`).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height, `${where}: the band is below the screen`).toBeLessThanOrEqual(height);
+}
+
 async function openRail(page: Page) {
   const toggle = page.getByRole("button", { name: /Accounts, quick actions and texts/ });
   if (await toggle.isVisible()) await toggle.click();
@@ -54,6 +62,26 @@ test("a question gets an answer with a source that opens", async ({ page }) => {
   await noSidewaysScroll(page);
 });
 
+test("the demonstration band stays on screen through a conversation", async ({ page }) => {
+  await startAsAmina(page);
+  for (const question of ["What's my balance?", "Is there a monthly fee on the Everyday Account?", "How do I raise my daily limit?"]) {
+    await page.getByRole("textbox", { name: "Your message" }).fill(question);
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.locator(".msg--assistant")).not.toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Your message" })).toBeEnabled();
+  }
+  await expect(page.locator(".msg--customer")).toHaveCount(3);
+  // The conversation is taller than the screen, scrolled to its newest message.
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await bannerOnScreen(page, "chat, scrolled to the newest message");
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open as the AI lead" }).click();
+  await expect(page.getByRole("heading", { name: "Audit trail" })).toBeVisible();
+  await page.mouse.wheel(0, 5000);
+  await bannerOnScreen(page, "console, scrolled down");
+});
+
 test("a card block waits for the customer and then runs", async ({ page }) => {
   await startAsAmina(page);
   await openRail(page);
@@ -74,7 +102,7 @@ test("a customer reaches a person, and the agent replies", async ({ page }) => {
   await expect(page.getByText("A colleague is looking after this conversation")).toBeVisible();
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Open as agent" }).click();
+  await page.getByRole("button", { name: "Open as an agent" }).click();
   await expect(page.getByRole("heading", { name: "Handovers" })).toBeVisible();
   await expect(page.getByRole("heading", { name: /tapped Talk to a person/ })).toBeVisible();
   await noAxeViolations(page, "agent console");
@@ -93,7 +121,7 @@ test("the AI lead sees an intact audit trail", async ({ page }) => {
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".msg--assistant").last()).toBeVisible();
   await page.goto("/");
-  await page.getByRole("button", { name: "Open as AI lead" }).click();
+  await page.getByRole("button", { name: "Open as the AI lead" }).click();
   await expect(page.getByRole("heading", { name: "Audit trail" })).toBeVisible();
   await expect(page.getByText(/Chain intact/)).toBeVisible();
   await noAxeViolations(page, "audit trail");

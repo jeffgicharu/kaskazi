@@ -63,21 +63,23 @@ function Console({ role }: { role: Role }) {
   return (
     <div className="console-shell">
       <a className="skip-link" href="#main">Skip to the main content</a>
-      <DemoBanner />
-      <header className="console-header">
-        <Wordmark to="/" />
-        <span className="console-title">Staff console</span>
-        <nav className="role-switch" aria-label="Role">
-          {(["agent", "ai_lead"] as Role[]).map((r) => (
-            <button key={r} type="button" className={`role-tab${r === role ? " is-current" : ""}`} aria-current={r === role ? "page" : undefined} onClick={() => switchRole.mutate(r)}>
-              {ROLE_NAMES[r]}
-            </button>
-          ))}
-        </nav>
-        <button type="button" className="btn btn-quiet btn-small" onClick={() => navigate("/chat")}>
-          Back to the customer app
-        </button>
-      </header>
+      <div className="app-top">
+        <DemoBanner />
+        <header className="console-header">
+          <Wordmark to="/" />
+          <span className="console-title">Staff console</span>
+          <nav className="role-switch" aria-label="Role">
+            {(["agent", "ai_lead"] as Role[]).map((r) => (
+              <button key={r} type="button" className={`role-tab${r === role ? " is-current" : ""}`} aria-current={r === role ? "page" : undefined} onClick={() => switchRole.mutate(r)}>
+                {ROLE_NAMES[r]}
+              </button>
+            ))}
+          </nav>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => navigate("/chat")}>
+            Back to the customer app
+          </button>
+        </header>
+      </div>
       <main id="main" className="console-main">
         {role === "ai_lead" ? <AuditTrail /> : <HandoverQueue />}
       </main>
