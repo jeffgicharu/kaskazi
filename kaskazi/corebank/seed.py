@@ -303,7 +303,8 @@ async def seed_copy(
     )
     names = bank()["accounts"]
     first_account: uuid.UUID | None = None
-    for product, balance in persona.accounts:
+    # The persona lists its main account first; it is also the oldest, which is how lists sort it.
+    for index, (product, balance) in enumerate(persona.accounts):
         account_id = uuid.uuid4()
         first_account = first_account or account_id
         await conn.execute(
@@ -315,7 +316,7 @@ async def seed_copy(
             account_number(persona.branch_code, rng),
             names[product]["name"],
             balance,
-            today - timedelta(days=rng.randrange(400, 2400)),
+            today - timedelta(days=2400 - 300 * index - rng.randrange(0, 200)),
         )
         running = balance
         rows = []

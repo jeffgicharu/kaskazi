@@ -198,9 +198,10 @@ class Executor:
         if mode == "temporary" and c["status"] == "blocked":
             return ToolOutcome({"error": "That card is already blocked."}, is_error=True)
         label = f"{c['kind'].title()} card ending {c['last4']}"
+        name = f"{c['kind']} card ending {c['last4']}"
         if mode == "temporary":
             preview = Preview(
-                f"Block your {label}",
+                f"Block your {name}",
                 [
                     ("Card", label),
                     ("Block", "Temporary"),
@@ -210,7 +211,7 @@ class Executor:
         else:
             fee = rules.bank()["cards"]["debit"]["replacement_fee"]
             preview = Preview(
-                f"Cancel your {label} as lost or stolen",
+                f"Cancel your {name} as lost or stolen",
                 [
                     ("Card", label),
                     ("Block", "Lost or stolen"),
@@ -239,7 +240,7 @@ class Executor:
             return ToolOutcome({"error": "That card isn't blocked."}, is_error=True)
         label = f"{c['kind'].title()} card ending {c['last4']}"
         preview = Preview(
-            f"Unblock your {label}",
+            f"Unblock your {c['kind']} card ending {c['last4']}",
             [("Card", label)],
             needs_code=True,
             note="We've sent a one-time code to your registered phone. Enter it to confirm.",

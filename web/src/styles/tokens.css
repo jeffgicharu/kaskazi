@@ -1,0 +1,123 @@
+/*
+ * Kaskazi's design tokens. "Monsoon ledger": coastal sand paper, ink-indigo text, one terracotta
+ * accent, saffron for highlights. Contrast pairs used for text are at least 4.5:1.
+ */
+:root {
+  color-scheme: light;
+
+  --paper: #f6f1e7;
+  --paper-deep: #ece3d1;
+  --card: #fffdf8;
+  --ink: #1b2340;
+  --ink-soft: #343c5e;
+  --muted: #565b78;
+  --line: #ddd2bd;
+  --line-strong: #c5b89e;
+
+  --accent: #ad4a24;
+  --accent-hover: #933c1b;
+  --accent-ink: #8a3819;
+  --on-accent: #ffffff;
+  --saffron: #e1ac45;
+  --saffron-soft: #f6e4bd;
+
+  --ok: #2c6a55;
+  --ok-soft: #dcece4;
+  --warn: #8a5a00;
+  --warn-soft: #f6e8c8;
+  --danger: #a8281b;
+  --danger-soft: #f7dfda;
+
+  --customer-bubble: #1b2340;
+  --on-customer-bubble: #f6f1e7;
+
+  --focus: #2b56c9;
+  --shadow-1: 0 1px 2px rgb(27 35 64 / 0.06), 0 2px 8px rgb(27 35 64 / 0.05);
+  --shadow-2: 0 8px 28px rgb(27 35 64 / 0.12), 0 2px 6px rgb(27 35 64 / 0.06);
+
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --font-ui: "Atkinson Hyperlegible Next Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 18px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --fast: 140ms;
+  --medium: 240ms;
+
+  /* A faint paper grain, drawn by the browser from SVG noise. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.12 0 0 0 0 0.22 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #12162a;
+    --paper-deep: #0d1020;
+    --card: #1a1f38;
+    --ink: #ece6da;
+    --ink-soft: #d2ccbf;
+    --muted: #a9adc4;
+    --line: #2c3252;
+    --line-strong: #3d4470;
+    --accent: #e27c50;
+    --accent-hover: #ec916a;
+    --accent-ink: #f0a07e;
+    --on-accent: #1b1208;
+    --saffron: #e8bb60;
+    --saffron-soft: #3a3118;
+    --ok: #7cc4a8;
+    --ok-soft: #173229;
+    --warn: #e8bb60;
+    --warn-soft: #362a10;
+    --danger: #f08a7e;
+    --danger-soft: #3a1714;
+    --customer-bubble: #ece6da;
+    --on-customer-bubble: #12162a;
+    --focus: #8fb0ff;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-2: 0 10px 30px rgb(0 0 0 / 0.45);
+    --grain: none;
+  }
+}
+
+/* The console is an ink room: dark by default. */
+:root[data-theme="dark"],
+.theme-ink {
+  color-scheme: dark;
+  --paper: #12162a;
+  --paper-deep: #0d1020;
+  --card: #1a1f38;
+  --ink: #ece6da;
+  --ink-soft: #d2ccbf;
+  --muted: #a9adc4;
+  --line: #2c3252;
+  --line-strong: #3d4470;
+  --accent: #e27c50;
+  --accent-hover: #ec916a;
+  --accent-ink: #f0a07e;
+  --on-accent: #1b1208;
+  --saffron: #e8bb60;
+  --saffron-soft: #3a3118;
+  --ok: #7cc4a8;
+  --ok-soft: #173229;
+  --warn: #e8bb60;
+  --warn-soft: #362a10;
+  --danger: #f08a7e;
+  --danger-soft: #3a1714;
+  --focus: #8fb0ff;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-2: 0 10px 30px rgb(0 0 0 / 0.45);
+  --grain: none;
+}

@@ -69,8 +69,21 @@ def _reply(request: GenerateRequest, settings: CallSettings) -> ProviderReply:
         }
         return _structured(data, settings, usage)
 
+    if request.output_schema is not None and request.route == "handover.summary":
+        return _structured(
+            {
+                "summary": "The customer asked for a person. (Written by the stand-in provider used in tests.)",
+                "reason": "Customer asked for a person",
+                "facts": [],
+                "open_questions": ["What does the customer need?"],
+                "suggested_first_reply": "Hello, I'm a colleague at Kaskazi. How can I help?",
+                "urgency": "normal",
+            },
+            settings,
+            usage,
+        )
     if request.output_schema is not None:
-        return _structured({"summary": "Sample summary.", "next_steps": []}, settings, usage)
+        return _structured({}, settings, usage)
 
     last = request.messages[-1]
     if not any(isinstance(p, ToolResultPart) for p in last.parts):
