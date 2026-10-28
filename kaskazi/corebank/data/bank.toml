@@ -1,0 +1,366 @@
+# Kaskazi Bank's products, prices and rules.
+#
+# Kaskazi Bank is invented. Every product, price, rate and rule here is sample data written for
+# this demonstration. This file is the single source for figures: the bank's documents quote it,
+# the core-banking service charges from it, and the evaluations check answers against it.
+#
+# Amounts are in Kenya shillings (KES) unless a field says otherwise. Rates are percentages.
+
+[bank]
+name = "Kaskazi Bank"
+legal_name = "Kaskazi Bank Limited"
+head_office_town = "Mombasa"
+website = "kaskazi.example"
+effective_date = 2026-10-01
+base_rate = 11.5                       # Kaskazi Base Rate, % a year
+contact_centre_hours = "24 hours a day, every day"
+branch_hours_weekdays = "8:30 am to 4:30 pm, Monday to Friday"
+branch_hours_saturday = "9:00 am to 12:00 noon on Saturday"
+branch_closed = "Sundays and public holidays"
+working_day = "Monday to Friday, except public holidays"
+# A real bank would publish its phone number, email and USSD code. This one has none.
+contact_note = "not available in this demonstration"
+
+[[branches]]
+name = "Mombasa Head Office"
+town = "Mombasa"
+code = "101"
+[[branches]]
+name = "Malindi"
+town = "Malindi"
+code = "102"
+[[branches]]
+name = "Kilifi"
+town = "Kilifi"
+code = "103"
+[[branches]]
+name = "Nairobi City Centre"
+town = "Nairobi"
+code = "201"
+[[branches]]
+name = "Westlands"
+town = "Nairobi"
+code = "202"
+[[branches]]
+name = "Kisumu"
+town = "Kisumu"
+code = "301"
+[[branches]]
+name = "Nakuru"
+town = "Nakuru"
+code = "302"
+[[branches]]
+name = "Eldoret"
+town = "Eldoret"
+code = "303"
+[[branches]]
+name = "Nyeri"
+town = "Nyeri"
+code = "401"
+[[branches]]
+name = "Machakos"
+town = "Machakos"
+code = "402"
+
+# Account numbers: 13 digits. "0", the 3-digit branch code, an 8-digit serial and a check digit
+# computed with the Luhn algorithm over the first 12 digits.
+[account_number]
+length = 13
+format = "0 + branch code (3) + serial (8) + Luhn check digit (1)"
+
+# --------------------------------------------------------------------------------------------
+# Accounts
+# --------------------------------------------------------------------------------------------
+
+[accounts.everyday]
+name = "Kaskazi Everyday Account"
+kind = "current"
+audience = "Individuals aged 18 and over"
+minimum_opening_balance = 0
+monthly_fee = 250
+monthly_fee_waived_if = [
+  "your salary is paid into the account that month",
+  "your average balance for the month is KES 50,000 or more",
+]
+debit_card_included = true
+cheque_book_25_leaves = 750
+overdraft_available = false
+interest_paid = false
+
+[accounts.goal_saver]
+name = "Kaskazi Goal Saver"
+kind = "savings"
+audience = "Individuals aged 18 and over"
+minimum_opening_balance = 1000
+monthly_fee = 0
+interest_rate_high = 5.0               # on the whole balance when it is at or above the threshold
+interest_rate_low = 3.0                # on the whole balance when it is below the threshold
+interest_threshold = 10000
+interest_calculated = "daily on the closing balance"
+interest_paid = "monthly, on the last working day of the month"
+withholding_tax_on_interest = 15.0     # deducted before interest is paid
+free_withdrawals_per_month = 1
+fee_per_extra_withdrawal = 150
+maximum_goals = 5
+debit_card_included = false
+
+[accounts.fixed_deposit]
+name = "Kaskazi Fixed Deposit"
+kind = "term deposit"
+minimum_deposit = 50000
+terms_months = [3, 6, 12]
+rate_3_months = 8.0
+rate_6_months = 8.75
+rate_12_months = 9.5
+interest_paid = "at maturity"
+withholding_tax_on_interest = 15.0
+rollover = "automatic for the same term at the rate on the rollover date, unless you tell us otherwise at least 2 working days before maturity"
+early_withdrawal = "allowed; you lose half of the interest earned so far"
+partial_withdrawal_allowed = false
+
+[accounts.student]
+name = "Kaskazi Student Account"
+kind = "current"
+audience = "Students aged 18 to 25 with a valid student ID from a university or college"
+minimum_opening_balance = 0
+monthly_fee = 0
+debit_card_included = true
+daily_withdrawal_limit = 20000
+converts_to = "Kaskazi Everyday Account"
+converts_when = "the month after your 26th birthday, or when you can no longer show a valid student ID"
+
+[accounts.business]
+name = "Kaskazi Business Account"
+kind = "current"
+audience = "Sole traders, partnerships and registered companies"
+minimum_opening_balance = 5000
+monthly_fee = 1000
+free_transactions_per_month = 30
+fee_per_extra_transaction = 30
+till_collections = "card and mobile money payments into the account at no charge to you"
+statement = "monthly, free in the app; printed statements KES 300 a month"
+signatories_maximum = 4
+
+[accounts.foreign_currency]
+name = "Kaskazi Foreign Currency Account"
+kind = "current"
+currencies = ["USD", "GBP", "EUR"]
+minimum_opening_balance_usd = 100
+minimum_opening_balance_gbp = 100
+minimum_opening_balance_eur = 100
+monthly_fee_usd = 5
+monthly_fee_gbp = 4
+monthly_fee_eur = 5
+cash_withdrawal_fee_percent = 1.0      # of the amount, for foreign cash taken at a branch
+interest_paid = false
+
+# --------------------------------------------------------------------------------------------
+# Cards
+# --------------------------------------------------------------------------------------------
+
+[cards.debit]
+name = "Kaskazi Debit Card"
+first_card_fee = 0
+replacement_fee = 500
+annual_fee = 0
+atm_kaskazi = 0
+atm_other_bank_kenya = 35
+atm_abroad = 300
+currency_conversion_percent = 3.0
+daily_atm_limit = 100000
+daily_card_payment_limit = 300000      # in-store and online, together
+contactless_limit_per_payment = 5000
+pin_attempts_before_lock = 3
+validity_years = 4
+
+[cards.credit]
+name = "Kaskazi Credit Card"
+minimum_limit = 30000
+maximum_limit = 500000
+minimum_net_monthly_pay = 50000
+interest_per_month = 2.5               # on balances carried over; 30% a year
+interest_free_days_up_to = 50
+annual_fee = 2000
+annual_fee_waived = "for the first year"
+minimum_payment_percent = 5.0
+minimum_payment_floor = 1000           # or the full balance if lower
+late_payment_fee = 1000
+payment_due_days_after_statement = 20
+cash_advance_fee_percent = 3.0
+cash_advance_fee_minimum = 500
+cash_advance_interest = "charged from the day of the withdrawal, with no interest-free period"
+over_limit = "payments that would take you over your limit are declined"
+replacement_fee = 500
+currency_conversion_percent = 3.0
+
+[cards.blocking]
+temporary_block = "you can block and unblock the card yourself in the app or through the assistant"
+unblock_needs = "a one-time code sent to your registered phone number"
+lost_or_stolen = "a card blocked as lost or stolen is cancelled for good and cannot be unblocked; order a replacement"
+replacement_delivery_working_days = 5
+replacement_collection = "at the branch you choose"
+blocked_card_still_charged = "payments you set up before the block, such as subscriptions, are declined while the card is blocked"
+
+[cards.disputes]
+report_within_days = 60                # from the transaction date
+acknowledge_within_hours = 24
+provisional_credit_up_to = 20000       # for disputes on amounts up to this, while we investigate
+provisional_credit_within_working_days = 10
+investigation_up_to_days = 45
+fraud_liability_before_report = 5000   # most you lose for card fraud before you report, unless you were careless with your PIN or code
+fraud_liability_after_report = 0
+
+# --------------------------------------------------------------------------------------------
+# Loans
+# --------------------------------------------------------------------------------------------
+
+[loans.personal]
+name = "Kaskazi Personal Loan"
+minimum_amount = 50000
+maximum_amount = 3000000
+minimum_term_months = 6
+maximum_term_months = 60
+interest_rate = 15.5                   # % a year, on the reducing balance (base rate + 4.0)
+margin_over_base = 4.0
+interest_method = "reducing balance, monthly instalments"
+arrangement_fee_percent = 2.5
+arrangement_fee_minimum = 2000
+arrangement_fee_paid = "deducted from the loan before it is paid to you"
+credit_life_insurance_percent_per_year = 0.5   # of the loan amount, for each year of the term (part years count as a full year)
+credit_life_insurance_paid = "deducted from the loan before it is paid to you"
+minimum_age = 21
+maximum_age_at_end_of_term = 65
+minimum_net_monthly_pay = 25000
+salary_history_months = 3              # salary paid into Kaskazi, or statements from another bank
+other_bank_statement_months = 6
+affordability_limit_percent = 40.0     # all monthly loan repayments, including this one, as a % of net monthly pay
+early_repayment_fee_percent = 2.0      # of the amount repaid early, during the first 12 months
+early_repayment_fee_free_after_months = 12
+late_payment_fee = 500                 # for each missed instalment
+decision_target_working_days = 2       # after all documents are received
+disbursement = "into your Kaskazi Everyday Account the same working day the loan is approved and you accept the offer"
+
+[loans.salary_advance]
+name = "Kaskazi Salary Advance"
+maximum_percent_of_net_pay = 50.0
+maximum_amount = 100000
+minimum_amount = 1000
+fee_percent = 3.0                      # flat, one-off; no interest
+term = "repaid in full from your next salary"
+salary_credits_needed = 3              # consecutive monthly salaries into your Kaskazi account
+advances_at_a_time = 1
+one_third_rule = "after the advance is repaid from your salary, you must still take home at least one third of your basic pay"
+missed_repayment = "if your salary does not arrive, the advance plus a fee of KES 500 is collected from the account when money next comes in"
+
+[loans.documents]
+payslips_months = 3
+statement_months_other_bank = 6
+id = "national ID card or passport"
+kra_pin = true
+documents_valid_if = [
+  "payslips are the latest three months, with no gaps",
+  "the statement covers the full period and every page is included",
+  "names match on every document",
+  "the ID has not expired",
+]
+
+# --------------------------------------------------------------------------------------------
+# Payments and digital banking
+# --------------------------------------------------------------------------------------------
+
+[transfers]
+own_accounts = 0
+other_kaskazi_accounts = 0
+instant_other_bank = [
+  { up_to = 10000, fee = 30 },
+  { up_to = 100000, fee = 60 },
+  { up_to = 999999, fee = 120 },
+]
+instant_other_bank_maximum = 999999
+eft_next_day = 100
+eft_cut_off = "3:00 pm on a working day; later instructions go the next working day"
+rtgs_same_day = 500
+rtgs_minimum = 1000000
+rtgs_cut_off = "2:00 pm on a working day"
+mobile_money = [
+  { up_to = 1000, fee = 15 },
+  { up_to = 10000, fee = 35 },
+  { up_to = 50000, fee = 55 },
+  { up_to = 150000, fee = 85 },
+]
+mobile_money_maximum_per_transfer = 150000
+mobile_money_daily_limit = 300000
+bill_payment = 30
+school_fees_payment = 0
+standing_order_setup = 0
+standing_order_each_payment = 50
+digital_daily_limit = 500000
+new_recipient_first_24_hours_limit = 50000
+international_outward = 2500           # plus any charges by the banks in between
+international_inward = 0
+large_payments = "a single payment above the daily digital limit, and every RTGS payment, is made at a branch"
+
+[agents]
+deposit = 0
+withdrawal = [
+  { up_to = 2500, fee = 30 },
+  { up_to = 5000, fee = 50 },
+  { up_to = 10000, fee = 80 },
+  { up_to = 20000, fee = 120 },
+  { up_to = 50000, fee = 200 },
+]
+withdrawal_maximum = 50000
+balance_enquiry = 10
+mini_statement = 15
+daily_agent_limit = 100000
+
+[digital]
+app_and_web_banking_fee = 0
+ussd_session_fee = 0                   # the bank does not charge; the mobile network may
+statement_in_app = 0
+printed_statement = 300                # per statement, at a branch
+balance_enquiry_atm_other_bank = 25
+one_time_code_valid_minutes = 5
+session_timeout_minutes = 5
+login_attempts_before_lock = 5
+
+# --------------------------------------------------------------------------------------------
+# Service standards, complaints and other rules
+# --------------------------------------------------------------------------------------------
+
+[complaints]
+acknowledge_within_hours = 24
+resolve_within_working_days = 7
+complex_resolve_within_days = 30
+reference_format = "KZC- followed by 6 digits"
+escalation = [
+  "the agent or branch who handled it",
+  "the Customer Experience team",
+  "the Head of Customer Experience",
+]
+regulator_note = "In a real bank, details of the regulator's complaints service would be here. Kaskazi Bank is invented and is not regulated by anyone."
+
+[dormancy]
+inactive_months = 12                   # no transaction started by you
+reactivation = "at any branch with your ID, or in the app with a selfie check"
+reactivation_fee = 0
+unclaimed_note = "after a long period with no contact, the law requires banks to hand unclaimed money to a government authority, from which you can still claim it"
+
+[kyc]
+individual = ["national ID card or passport", "KRA PIN", "a phone number registered in your name", "a selfie, for the app"]
+student_extra = ["a valid student ID"]
+business_extra = ["certificate of registration or incorporation", "KRA PIN for the business", "IDs and KRA PINs of all signatories"]
+update_every_years = 3
+
+[service]
+branch_queue_target_minutes = 15
+contact_centre_answer_target_seconds = 60
+assistant_handover_target_minutes = 5  # during staffed hours
+staffed_hours = "7:00 am to 10:00 pm, every day"
+outside_staffed_hours = "the conversation waits in the queue and a person replies when the team is next in; card blocks never wait, because you can do them yourself at any time"
+card_replacement_working_days = 5
+account_opening_app_minutes = 10
+
+[data]
+retention_after_closure_years = 7
+access_request_days = 7                # to respond to a request for your data
