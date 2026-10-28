@@ -301,6 +301,9 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
         )
         return await _template(deps, inp, state, user_message, reply, "handover", {}, notice)
 
+    if decision == "answer_and_hand_over":
+        state.handover = {"reason": "Possible fraud", "urgent": True, "trigger": "fraud"}
+
     # --- Answer: retrieve, generate, check ---------------------------------------------------
     await progress("searching", "Searching the bank's documents")
     query = router["search_query"] or masked.text
@@ -342,7 +345,8 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
             turn_id=turn_id,
         )
 
-    offered = tools_for("question" if router_failed else router["intent"])
+    intent = "task" if decision == "answer_and_hand_over" else router["intent"]
+    offered = tools_for("question" if router_failed else intent)
     user_message = Message(
         role="user",
         parts=[
@@ -498,6 +502,10 @@ def _decide(router: dict[str, Any], risk: str) -> str:
         return "refuse_injection"
     if router["intent"] == "off_topic" and router["confidence"] >= 0.6:
         return "refuse_off_topic"
+    if router["sensitive_situation"] == "fraud" and router["intent"] != "wants_person":
+        # Fraud goes to a person, but the customer may need to block a card first: answer with
+        # the tools and hand over as well.
+        return "answer_and_hand_over"
     if router["intent"] == "wants_person" or router["sensitive_situation"] != "none":
         return "hand_over"
     return "answer"
@@ -997,7 +1005,8 @@ async def _finish(
             "output",
             {
                 "outcome": outcome,
-                "text": next((p.text for p in new[-1].parts if isinstance(p, TextPart)), "")
+                # A cited answer comes back in several text blocks; the trail keeps all of them.
+                "text": "".join(p.text for p in new[-1].parts if isinstance(p, TextPart))
                 if new[-1].role == "assistant"
                 else "",
                 "sources": [s["chunk_id"] for s in display["sources"]],
