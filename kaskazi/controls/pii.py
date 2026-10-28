@@ -61,9 +61,13 @@ def luhn_ok(digits: str) -> bool:
     return total % 10 == 0
 
 
-_EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?![\w-])")
+# The domain must end in a letter TLD, so a version reference such as "assistant.router@1.0.0" is no email.
+_EMAIL = re.compile(
+    r"(?<![\w.+-])[\w.+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(?![\w-])"
+)
 _PHONE = re.compile(r"(?<![\d+])(?:\+?254[\s-]?|0)(?:7|1)\d{2}[\s-]?\d{3}[\s-]?\d{3}(?!\d)")
-_DIGIT_RUN = re.compile(r"(?<![\d])\d(?:[ -]?\d){11,18}(?!\d)")
+# Digit runs count only when they stand alone: not inside a hex id, a hash or a UUID.
+_DIGIT_RUN = re.compile(r"(?<![\w-])\d(?:[ -]?\d){11,18}(?![\w-])")
 _KRA = re.compile(r"(?<![A-Za-z0-9])[APap]\d{9}[A-Za-z](?![A-Za-z0-9])")
 _ID_LABELLED = re.compile(
     r"(?i)\b(?:national\s+id|id\s*(?:no\.?|number|num|#)?|i\.d\.?|identity(?:\s+card)?(?:\s+number)?|kitambulisho|namba\s+ya\s+id)"
@@ -85,7 +89,7 @@ _SECRET_CODE = re.compile(
 _SECRET_PASSWORD = re.compile(
     r"(?i)\b(?:password|nenosiri)\s*(?:is|ni|:|=)\s*((?=\S*[\d!@#$%^&*])\S{6,32})"
 )
-_UNLABELLED_ID = re.compile(r"(?<![\d,.])\d{8}(?![\d,.])")
+_UNLABELLED_ID = re.compile(r"(?<![\w,.-])\d{8}(?![\w,.-])")
 _MONEY_CONTEXT = re.compile(
     r"(?i)(?:kes|ksh|kshs|sh|shs|shillings?|bob|borrow|loan|pay|paid|send|amount|balance|salary|"
     r"earn|deposit|withdraw|limit|transfer|fee|pesa)\W{0,3}(?:\w+\W+){0,2}$"

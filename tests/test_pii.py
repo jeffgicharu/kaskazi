@@ -60,6 +60,9 @@ def test_finds_kaskazi_account_numbers_by_their_check_digit() -> None:
         "is the file password-protected?",
         "complaint reference KZC-123456",
         "a 24 month loan",
+        "prompt assistant.router@1.0.0 was used",
+        "request 83712345a0c3-route and action 12345678-90ab-4cde-8f01-23456789abcd",
+        "hash 4111111111111111abcdef",
     ],
 )
 def test_leaves_ordinary_banking_text_alone(text: str) -> None:

@@ -1,0 +1,11 @@
+{
+  "assistant.router": {
+    "1.0.0": "800f68b667c340df2ed3f18f3e929b0d145465d5bf9401eb5008d2d23682eb33"
+  },
+  "assistant.system": {
+    "1.0.0": "38aa31cfd5f316ba8c9832c71636a011b25129e3a936a2db3a9a08ff525ec2dc"
+  },
+  "handover.summary": {
+    "1.0.0": "0add997d754527a33efcfd150fd4c7bc561a8edaae907c6a461d5587798b7edf"
+  }
+}

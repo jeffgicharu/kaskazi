@@ -42,7 +42,8 @@ def _last_user_text(request: GenerateRequest) -> str:
         if message.role == "user":
             texts = [p.text for p in message.parts if isinstance(p, TextPart)]
             if texts:
-                return texts[-1]
+                # The router sees earlier turns for context; it judges only the new message.
+                return texts[-1].rsplit("New message:\n", 1)[-1]
     return ""
 
 
