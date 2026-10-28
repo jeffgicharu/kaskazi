@@ -114,7 +114,7 @@ async def test_the_owner_cannot_rewrite_events_either(
 
 
 async def test_the_chain_verifies_and_detects_tampering(
-    owner_dsn: str, app_pool: asyncpg.Pool
+    superuser_dsn: str, app_pool: asyncpg.Pool
 ) -> None:
     a = await make_copy(app_pool)
     async with visitor_tx(app_pool, a) as conn:
@@ -124,9 +124,7 @@ async def test_the_chain_verifies_and_detects_tampering(
     assert row["events"] == 6 and row["first_broken"] is None
 
     # Tamper the way only a superuser could: with the trigger off.
-    su = await asyncpg.connect(
-        owner_dsn.replace("kaskazi_owner:test-only-password", "postgres:local-dev-only")
-    )
+    su = await asyncpg.connect(superuser_dsn)
     try:
         await su.execute("ALTER TABLE audit.events DISABLE TRIGGER events_append_only")
         await su.execute(

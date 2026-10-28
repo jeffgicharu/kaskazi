@@ -72,3 +72,8 @@ async def gateway_pool(database: str) -> AsyncIterator[asyncpg.Pool]:
 @pytest.fixture(scope="session")
 async def owner_dsn(database: str) -> str:
     return _dsn("kaskazi_owner", database)
+
+
+@pytest.fixture(scope="session")
+async def superuser_dsn(database: str) -> str:
+    return SUPERUSER_DSN.rsplit("/", 1)[0] + f"/{database}"
