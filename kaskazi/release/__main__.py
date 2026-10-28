@@ -73,7 +73,9 @@ async def load(release: str) -> int:
 async def check(args: argparse.Namespace) -> int:
     from kaskazi.release.check import run_checks
 
-    ok = await run_checks(api=args.api, gateway=args.gateway, release=args.release)
+    ok = await run_checks(
+        api=args.api, gateway=args.gateway, release=args.release, stand_in=args.stand_in
+    )
     return 0 if ok else 1
 
 
@@ -88,6 +90,12 @@ def main() -> int:
     p.add_argument("--api", required=True)
     p.add_argument("--gateway", required=True)
     p.add_argument("--release", required=True)
+    p.add_argument(
+        "--stand-in-providers",
+        dest="stand_in",
+        action="store_true",
+        help="CI only: the gateway runs stand-in providers",
+    )
     args = parser.parse_args()
     if args.command == "version":
         return version()

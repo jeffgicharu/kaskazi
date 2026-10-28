@@ -420,7 +420,10 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
     reply_text: str
     outcome: str
     checks: dict[str, Any] = {}
-    sources = [h.text for h in hits] + state.tool_sources + [masked.text, system_prompt.body]
+    # Every passage the model was given counts, including those still in the conversation from
+    # earlier turns, as do tool results, the customer's own words and the bank's system prompt.
+    passages = [p.text for m in state.history + new for p in m.parts if isinstance(p, DocumentPart)]
+    sources = passages + state.tool_sources + [masked.text, system_prompt.body]
     if final is not None:
         await progress("checking", "Checking the answer")
         answer, checks = _check(final, sources)

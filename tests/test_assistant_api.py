@@ -332,3 +332,22 @@ async def test_a_second_visitor_sees_nothing_of_the_first(stack: Stack) -> None:
         r = await other.get("/api/conversation", params={"id": first})
     assert r.status_code == 404
     assert uuid.UUID(first)
+
+
+async def test_the_release_journeys_pass(stack: Stack, monkeypatch: pytest.MonkeyPatch) -> None:
+    from kaskazi.release import check as release_check
+    from kaskazi.release.journeys import JOURNEYS, CheckCopy, Mode
+
+    secret = stack.client._transport.app.state.services.settings.secret  # type: ignore[attr-defined]
+    monkeypatch.setenv("KASKAZI_SECRET", secret.hex())
+    Mode.stand_in = True
+    CheckCopy.conversation = None
+    cookies = release_check.SessionCookies()
+    async with httpx.AsyncClient(
+        transport=stack.client._transport,
+        base_url="http://test",
+        event_hooks={"request": [cookies.on_request], "response": [cookies.on_response]},
+    ) as api:
+        for journey in JOURNEYS:
+            await journey(api, api, "dev")
+    Mode.stand_in = False

@@ -55,15 +55,52 @@ async def api_says_noindex(api: httpx.AsyncClient, gateway: httpx.AsyncClient, r
 
 
 CHECKS: list[Check] = [both_report_the_release, pinned_models_exist, api_says_noindex, *JOURNEYS]
+STAND_IN_SKIPS = {"both_report_the_release", "pinned_models_exist"}
 
 
-async def run_checks(*, api: str, gateway: str, release: str) -> bool:
+class SessionCookies:
+    """Carries the API's session cookies over plain HTTP to 127.0.0.1.
+
+    On the server the API marks its cookies Secure (visitors reach it over HTTPS through nginx),
+    and an HTTP client won't send a Secure cookie over plain HTTP. The check talks to the idle
+    slot directly, so it keeps the two session cookies itself.
+    """
+
+    NAMES = ("kz_copy", "kz_staff")
+
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+
+    async def on_request(self, request: httpx.Request) -> None:
+        if self.values:
+            request.headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in self.values.items())
+
+    async def on_response(self, response: httpx.Response) -> None:
+        for header in response.headers.get_list("set-cookie"):
+            name, _, rest = header.partition("=")
+            if name in self.NAMES:
+                self.values[name] = rest.split(";", 1)[0]
+
+
+async def run_checks(*, api: str, gateway: str, release: str, stand_in: bool = False) -> bool:
+    from kaskazi.release.journeys import CheckCopy, Mode
+
+    Mode.stand_in = stand_in
+    CheckCopy.conversation = None
     ok = True
+    cookies = SessionCookies()
     async with (
-        httpx.AsyncClient(base_url=api, timeout=45) as api_client,
+        httpx.AsyncClient(
+            base_url=api,
+            timeout=60,
+            event_hooks={"request": [cookies.on_request], "response": [cookies.on_response]},
+        ) as api_client,
         httpx.AsyncClient(base_url=gateway, timeout=15) as gateway_client,
     ):
         for check in CHECKS:
+            if stand_in and check.__name__ in STAND_IN_SKIPS:
+                print(f"skip {check.__name__} (stand-in providers)")
+                continue
             try:
                 message = await check(api_client, gateway_client, release)
             except Exception as exc:
