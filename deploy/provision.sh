@@ -93,7 +93,8 @@ for role in kaskazi_owner kaskazi_app kaskazi_gateway; do
         sudo -n -u postgres psql -q -v ON_ERROR_STOP=1 -c "ALTER ROLE $role CONNECTION LIMIT ${LIMITS[$role]}"
     else
         PASSWORDS[$role]="$(openssl rand -hex 24)"
-        sudo -n -u postgres psql -q -v ON_ERROR_STOP=1 <<SQL
+        # If psql ever quotes the statement in an error, the password is hidden from the output.
+        sudo -n -u postgres psql -q -v ON_ERROR_STOP=1 2>&1 <<SQL | sed -E "s/PASSWORD '[^']*'/PASSWORD '…'/g"
 SET log_statement = 'none';
 SET log_min_duration_statement = -1;
 CREATE ROLE $role LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
