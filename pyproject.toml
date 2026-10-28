@@ -48,7 +48,8 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "PTH"]
-ignore = ["S101"]
+# Line length is the formatter's job; it leaves long strings (SQL, messages) alone.
+ignore = ["S101", "E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S311", "E501"]
