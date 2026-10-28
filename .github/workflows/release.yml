@@ -1,8 +1,8 @@
 name: Release
 
+# Every push is checked, built and walked; only a push to main is deployed (see the deploy job).
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
