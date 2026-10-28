@@ -232,8 +232,13 @@ fi
 
 step "Checks"
 command -v rrsync >/dev/null && echo "rrsync: $(command -v rrsync)"
-curl -s -o /dev/null -w '  / through nginx before the first release: %{http_code}\n' --insecure \
-    --resolve kaskazi.jeffgicharu.com:443:127.0.0.1 https://kaskazi.jeffgicharu.com/ || true
+# A reload is graceful: for a moment, old workers without this site still answer. Give it a few seconds.
+for _ in $(seq 1 10); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' --insecure --resolve kaskazi.jeffgicharu.com:443:127.0.0.1 https://kaskazi.jeffgicharu.com/ || true)"
+    [[ "$code" == 200 ]] && break
+    sleep 1
+done
+echo "  / through nginx before the first release: $code (200 expected, the placeholder)"
 curl -s -o /dev/null -w '  /api/healthz before the first release: %{http_code} (503 expected)\n' --insecure \
     --resolve kaskazi.jeffgicharu.com:443:127.0.0.1 https://kaskazi.jeffgicharu.com/api/healthz || true
 free -m | head -2 | sed 's/^/  /'

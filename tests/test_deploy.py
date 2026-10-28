@@ -41,6 +41,9 @@ def test_nginx_has_no_regex_under_a_prefix_and_exact_stream_locations() -> None:
     for exact in re.findall(r"location = /api/(?:console/)?stream \{([^}]*)\}", conf):
         assert "proxy_buffering off;" in exact
     assert "error_page 502 503 504 =503 /unavailable.html;" in conf
+    # Cloudflare replaces an origin's 502 and 504, so nginx's own failures go out as 503.
+    assert "error_page 502 503 504 @api_unavailable;" not in conf
+    assert conf.count("error_page 502 503 504 =503 @api_unavailable;") == 5
     assert "/var/log/nginx/kaskazi.access.log" in conf
 
 
