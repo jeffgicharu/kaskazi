@@ -56,8 +56,13 @@ AmbientCapabilities=
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 UMask=0077
 
-# Out to the two model providers only. Name resolution goes to systemd-resolved on 127.0.0.53,
-# which localhost covers. The clients also pin their hosts in code and refuse redirects.
+# Out to the two model providers only, and to the server's name server to find them. The clients
+# also pin their hosts in code and refuse redirects.
+#
+# The name server is the one /etc/resolv.conf names, read on 29 October 2026: 8.8.8.8 (the server
+# doesn't run systemd-resolved). If the server's resolver changes, the 8.8.8.8 line must change
+# with it; until then the release check fails with a name-resolution error. Any resolver can
+# carry data out in its queries; a forward proxy would close that too.
 #
 # Anthropic's published API addresses, read on 29 October 2026 from
 # https://platform.claude.com/docs/en/api/ip-addresses (api.anthropic.com resolved to 160.79.104.10).
@@ -69,6 +74,7 @@ UMask=0077
 # allow-list of hosts in front instead; the threat model records this.
 IPAddressDeny=any
 IPAddressAllow=localhost
+IPAddressAllow=8.8.8.8
 IPAddressAllow=160.79.104.0/23 2607:6bc0::/48
 IPAddressAllow=173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18
 IPAddressAllow=108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17

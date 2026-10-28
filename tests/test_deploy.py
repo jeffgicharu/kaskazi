@@ -71,6 +71,8 @@ def test_only_the_gateway_reaches_outside() -> None:
     gateway = (DEPLOY / "kaskazi-gateway@.service").read_text()
     assert re.findall(r"^IPAddressAllow=(.*)$", api, re.M) == ["localhost"]
     assert "160.79.104.0/23" in gateway and "read on 29 October 2026" in gateway
+    # The server resolves names through 8.8.8.8, not systemd-resolved on 127.0.0.53.
+    assert "IPAddressAllow=8.8.8.8" in gateway.splitlines()
 
 
 def test_activation_refuses_anything_but_a_real_release_folder() -> None:
