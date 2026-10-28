@@ -1,0 +1,70 @@
+[project]
+name = "kaskazi"
+version = "0.1.0"
+description = "An AI platform for an invented Kenyan bank, with sample data only."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "anthropic",
+    "asyncpg",
+    "cryptography",
+    "fastapi",
+    "fpdf2",
+    "httpx",
+    "openai",
+    "pillow",
+    "pypdf",
+    "python-multipart",
+    "uvicorn",
+]
+
+[project.scripts]
+kaskazi-api = "kaskazi.api.cli:main"
+kaskazi-gateway = "kaskazi.gateway.cli:main"
+
+[dependency-groups]
+dev = [
+    "hypothesis",
+    "mypy",
+    "pip-audit",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kaskazi"]
+
+[tool.uv]
+python-preference = "only-system"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "PTH"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S311", "E501"]
+"evals/**" = ["S311"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+packages = ["kaskazi"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]

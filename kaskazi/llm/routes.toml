@@ -1,0 +1,60 @@
+# Which model serves each route, and how.
+#
+# Model ids are pinned exactly. The release check fails if any of them is no longer offered.
+# Each choice is justified by a measurement; see evals/reports for the run that set it.
+
+[routes."assistant.answer"]
+primary = "claude-haiku-5-5"
+effort = "low"
+max_tokens = 2048
+timeout_s = 12
+fallback = "gpt-5.4-mini"
+fallback_effort = "low"
+fallback_timeout_s = 10
+
+[routes."assistant.router"]
+primary = "claude-haiku-5-5"
+effort = "low"
+max_tokens = 1024
+timeout_s = 4
+fallback = "gpt-5.4-mini"
+fallback_effort = "low"
+fallback_timeout_s = 4
+
+[routes."handover.summary"]
+primary = "claude-haiku-5-5"
+effort = "low"
+max_tokens = 1500
+timeout_s = 15
+fallback = "gpt-5.4-mini"
+fallback_effort = "low"
+fallback_timeout_s = 15
+
+[routes."documents.extract_text"]
+primary = "claude-haiku-5-5"
+effort = "medium"
+max_tokens = 4096
+timeout_s = 30
+fallback = "gpt-5.4-mini"
+fallback_effort = "low"
+fallback_timeout_s = 30
+
+[routes."documents.extract_image"]
+primary = "claude-haiku-5-5"
+effort = "medium"
+max_tokens = 4096
+timeout_s = 30
+fallback = "gpt-5.4-mini"
+fallback_effort = "low"
+fallback_timeout_s = 30
+
+[routes."evals.judge"]
+primary = "claude-haiku-5-5"
+effort = "medium"
+max_tokens = 2048
+timeout_s = 30
+
+[embeddings]
+model = "text-embedding-3-small"
+dimensions = 512
+timeout_s = 5
