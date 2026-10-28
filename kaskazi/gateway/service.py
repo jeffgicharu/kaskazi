@@ -41,7 +41,7 @@ from kaskazi.llm.contract import (
     ToolResultPart,
 )
 from kaskazi.llm.prices import PRICES, cost_usd, worst_case_usd
-from kaskazi.llm.providers.base import Provider, ProviderFailure
+from kaskazi.llm.providers.base import Provider, ProviderFailure, ProviderUnreachable
 from kaskazi.llm.routing import AllProvidersFailed, EmbeddingRoute, Generator, Route, load_routes
 from kaskazi.release import release_id
 
@@ -399,9 +399,14 @@ def create_app(settings: GatewaySettings, gateway: Gateway | None = None) -> Fas
         return result
 
     @app.get("/v1/models", dependencies=[Depends(authorised)])
-    async def models() -> dict[str, bool]:
-        found: dict[str, bool] = await app.state.gateway.pinned_models()
-        return found
+    async def models() -> Response:
+        try:
+            found: dict[str, bool] = await app.state.gateway.pinned_models()
+        except ProviderUnreachable as error:
+            return JSONResponse(
+                {"unreachable": error.provider, "reason": error.reason}, status_code=502
+            )
+        return JSONResponse(found)
 
     return app
 

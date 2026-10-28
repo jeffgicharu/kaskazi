@@ -21,7 +21,7 @@ from kaskazi.llm.contract import (
     StopReason,
     TextPart,
 )
-from kaskazi.llm.providers.base import ProviderFailure
+from kaskazi.llm.providers.base import ProviderFailure, ProviderUnreachable
 from kaskazi.llm.providers.fake import FakeProvider
 from kaskazi.llm.providers.scripted import _reply
 from kaskazi.llm.routing import CircuitBreaker, EmbeddingRoute, Route
@@ -215,3 +215,53 @@ def test_fake_router_classifies() -> None:
     reply = _reply(req, CallSettings("claude-haiku-5-5", "low", 100, 2))
     assert reply.stop is StopReason.END and reply.structured is not None
     assert reply.structured["injection_risk"] == "high"
+
+
+async def test_a_provider_out_of_reach_is_named_by_the_models_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import anthropic
+    import httpx
+    import httpx2
+    import openai
+
+    from kaskazi.gateway.service import GatewaySettings, create_app
+    from kaskazi.llm.providers.anthropic import AnthropicProvider
+    from kaskazi.llm.providers.openai import OpenAIProvider
+    from kaskazi.release.check import CheckFailed, pinned_models_exist
+
+    def no_dns(sdk: type[Exception]) -> object:
+        async def retrieve(model: str) -> None:
+            request = httpx2.Request("GET", "https://example.invalid/v1/models")
+            try:
+                raise httpx2.ConnectError("[Errno -3] Temporary failure in name resolution")
+            except httpx2.ConnectError as error:
+                raise sdk(request=request) from error  # type: ignore[call-arg]
+
+        return retrieve
+
+    claude, gpt = AnthropicProvider("k", "w"), OpenAIProvider("k")
+    claude._client.models.retrieve = no_dns(anthropic.APIConnectionError)  # type: ignore[method-assign]
+    gpt._client.models.retrieve = no_dns(openai.APIConnectionError)  # type: ignore[method-assign]
+    for provider in (claude, gpt):
+        with pytest.raises(ProviderUnreachable) as caught:
+            await provider.model_exists("any")
+        assert caught.value.provider == provider.name
+        assert "name resolution" in caught.value.reason
+        await provider.aclose()
+
+    caps = Caps(site_day_usd=1, site_month_usd=1, visitor_day_usd=1, address_day_usd=1)
+    providers = {"anthropic": claude, "openai": gpt}
+    routes = {"assistant.answer": ROUTE}
+    embedding = EmbeddingRoute("text-embedding-3-small", 512, 2)
+    gw = Gateway(None, providers, routes, embedding, caps)  # type: ignore[arg-type]
+    app = create_app(GatewaySettings("t", "", caps, True, None, None, None, False), gateway=gw)
+    monkeypatch.setenv("KASKAZI_GATEWAY_TOKEN", "t")
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://gw") as c,
+    ):
+        with pytest.raises(
+            CheckFailed, match=r"can't reach anthropic: ConnectError: .*name resolution"
+        ):
+            await pinned_models_exist(c, c, "r")

@@ -35,6 +35,7 @@ from kaskazi.llm.providers.base import (
     CallSettings,
     ProviderFailure,
     ProviderReply,
+    ProviderUnreachable,
     pinned_http_client,
 )
 
@@ -71,6 +72,8 @@ class AnthropicProvider:
             await self._client.models.retrieve(model)
         except anthropic.NotFoundError:
             return False
+        except anthropic.APIConnectionError as error:
+            raise ProviderUnreachable(self.name, error) from error
         return True
 
     async def generate(self, request: GenerateRequest, settings: CallSettings) -> ProviderReply:

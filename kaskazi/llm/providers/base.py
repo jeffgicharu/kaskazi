@@ -73,6 +73,16 @@ class UnexpectedHost(Exception):
     pass
 
 
+class ProviderUnreachable(Exception):
+    """The provider could not be reached at all (no name resolution, no connection, a timeout)."""
+
+    def __init__(self, provider: str, error: BaseException) -> None:
+        cause = error.__cause__ or error
+        self.provider = provider
+        self.reason = f"{type(cause).__name__}: {cause}"
+        super().__init__(f"{provider} unreachable: {self.reason}")
+
+
 def pinned_http_client(sdk_client_class: type[Any], host: str) -> Any:
     """An HTTP client that can only talk to `host`.
 

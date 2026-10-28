@@ -33,6 +33,7 @@ from kaskazi.llm.providers.base import (
     CallSettings,
     ProviderFailure,
     ProviderReply,
+    ProviderUnreachable,
     pinned_http_client,
 )
 
@@ -69,6 +70,8 @@ class OpenAIProvider:
             await self._client.models.retrieve(model)
         except openai.NotFoundError:
             return False
+        except openai.APIConnectionError as error:
+            raise ProviderUnreachable(self.name, error) from error
         return True
 
     async def embed(

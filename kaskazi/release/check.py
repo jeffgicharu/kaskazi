@@ -39,6 +39,9 @@ async def pinned_models_exist(
     response = await gateway.get(
         "/v1/models", headers={"Authorization": f"Bearer {os.environ['KASKAZI_GATEWAY_TOKEN']}"}
     )
+    if response.status_code == 502:
+        body = response.json()
+        raise CheckFailed(f"the gateway can't reach {body['unreachable']}: {body['reason']}")
     response.raise_for_status()
     found: dict[str, bool] = response.json()
     missing = [model for model, ok in found.items() if not ok]
