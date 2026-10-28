@@ -1,0 +1,36 @@
+{
+  "run_on": "2026-10-29",
+  "set": "evals/drafts (answerable questions)",
+  "questions": 98,
+  "k": 8,
+  "corpus_version": "7405d1d081cd8426",
+  "chunks": 698,
+  "results": {
+    "vector": {
+      "document_recall": 0.959,
+      "section_recall": 0.878,
+      "mrr": 0.706
+    },
+    "keyword": {
+      "document_recall": 0.867,
+      "section_recall": 0.673,
+      "mrr": 0.69
+    },
+    "hybrid": {
+      "document_recall": 0.939,
+      "section_recall": 0.816,
+      "mrr": 0.77
+    },
+    "hybrid, router keywords": {
+      "document_recall": 0.969,
+      "section_recall": 0.847,
+      "mrr": 0.768
+    },
+    "hybrid, router rewrite": {
+      "document_recall": 0.929,
+      "section_recall": 0.796,
+      "mrr": 0.739
+    }
+  },
+  "decision": "A first message searches with its own words for the vector and the router's rewrite for the keywords; a follow-up uses the rewrite for both."
+}

@@ -62,3 +62,29 @@ def test_an_answer_with_a_figure_from_nowhere_fails() -> None:
 
 def test_placeholders_and_small_counts_are_not_figures() -> None:
     assert check("Sent to [PHONE_1] from your 2 accounts on 2026-10-29.", []).ok
+
+
+def test_figures_may_come_from_any_turn_but_not_from_the_models_own_words() -> None:
+    from kaskazi.assistant.turn import FIGURES_NOTE, figure_sources
+    from kaskazi.llm.contract import Message, TextPart, ToolCallPart, ToolResultPart
+
+    history = [
+        Message(role="user", parts=[TextPart(text="What is my Goal Saver balance?")]),
+        Message(
+            role="assistant",
+            parts=[ToolCallPart(call_id="c1", name="get_balances", arguments={})],
+        ),
+        Message(
+            role="user",
+            parts=[ToolResultPart(call_id="c1", content='{"goal_saver": "KES 128,500"}')],
+        ),
+        Message(role="assistant", parts=[TextPart(text="It is KES 128,500. Fees are KES 99.")]),
+        Message(role="system", parts=[TextPart(text=FIGURES_NOTE + "KES 77")]),
+        Message(role="user", parts=[TextPart(text="Is there a monthly fee?")]),
+    ]
+    sources = figure_sources(history)
+    # The balance read in an earlier turn still supports the figure.
+    assert check("No monthly fee, and your Goal Saver holds KES 128,500.", sources).ok
+    # The model's earlier words and a figures-check note support nothing.
+    assert check("The fee is KES 99.", sources).unsupported == ["KES 99"]
+    assert check("The fee is KES 77.", sources).unsupported == ["KES 77"]

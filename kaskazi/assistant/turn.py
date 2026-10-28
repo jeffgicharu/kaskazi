@@ -10,6 +10,7 @@ changes earlier ones, which keeps prompt caches and replayed thinking valid.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -246,8 +247,16 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
         )
 
     await progress("reading", "Reading your message")
+    # A first message is searched by its own words for the vector part and by the router's
+    # rewrite for the keyword part, which measured best of the hybrid set-ups (see
+    # evals/reports/retrieval-2026-10-29.json), so its vector is fetched while the router reads
+    # it. A follow-up's vector waits for the rewrite, which spells out what it refers to.
+    early_vector = (
+        asyncio.create_task(_embed(deps, state, budget, masked.text)) if state.first_turn else None
+    )
     router, router_failed = await _route(deps, inp, state, budget, masked.text)
     if isinstance(router, GatewayRefusal):
+        _drop(early_vector)
         return await _template(
             deps,
             inp,
@@ -263,6 +272,8 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
         else max(heuristic.risk, router["injection_risk"], key=["none", "low", "high"].index)
     )
     decision = _decide(router, risk)
+    if decision not in ("answer", "answer_and_hand_over"):
+        _drop(early_vector)
     async with visitor_tx(deps.pool, inp.sandbox_id) as conn:
         await record(
             conn,
@@ -307,13 +318,10 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
     # --- Answer: retrieve, generate, check ---------------------------------------------------
     await progress("searching", "Searching the bank's documents")
     query = router["search_query"] or masked.text
-    vector: list[float] | None = None
-    embedded = await deps.gateway.embed(
-        EmbedRequest(texts=[query], budget=budget, request_id=f"{turn_id}-embed")
-    )
-    if isinstance(embedded, EmbedResult):
-        vector = embedded.vectors[0]
-        state.cost += embedded.cost_usd
+    if early_vector is not None:
+        vector, vector_from = await early_vector, "message"
+    else:
+        vector, vector_from = await _embed(deps, state, budget, query), "rewrite"
     async with plain_tx(deps.pool) as conn:
         found = await search(
             conn,
@@ -329,6 +337,7 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
             "retrieval",
             {
                 "query": query,
+                "vector_from": vector_from,
                 "keyword_only": found.keyword_only,
                 "hits": [
                     {
@@ -420,10 +429,7 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
     reply_text: str
     outcome: str
     checks: dict[str, Any] = {}
-    # Every passage the model was given counts, including those still in the conversation from
-    # earlier turns, as do tool results, the customer's own words and the bank's system prompt.
-    passages = [p.text for m in state.history + new for p in m.parts if isinstance(p, DocumentPart)]
-    sources = passages + state.tool_sources + [masked.text, system_prompt.body]
+    sources = [*figure_sources(state.history + new), system_prompt.body]
     if final is not None:
         await progress("checking", "Checking the answer")
         answer, checks = _check(final, sources)
@@ -433,7 +439,7 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
                 parts=[
                     TextPart(
                         text=(
-                            "Bank system check: your answer gave figures that are not in the passages or tool results: "
+                            FIGURES_NOTE
                             + ", ".join(checks["unsupported_figures"])
                             + ". Answer again using only figures from the passages or tool results, or say you don't have that figure."
                         )
@@ -500,6 +506,34 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
 # --- Steps ---------------------------------------------------------------------------------------
 
 
+FIGURES_NOTE = (
+    "Bank system check: your answer gave figures that are not in the passages or tool results: "
+)
+
+
+def figure_sources(messages: list[Message]) -> list[str]:
+    """What an answer's figures may come from, anywhere in the conversation so far.
+
+    Every passage and tool result the model has been given counts, from this turn or an earlier
+    one (a balance read two questions ago is still the balance), as do the customer's own words
+    and the bank's notes: the customer context, outcomes and an agent's messages. The model's
+    own earlier answers don't, and neither does a figures-check note, which lists figures that
+    were *not* supported.
+    """
+    sources: list[str] = []
+    for m in messages:
+        for part in m.parts:
+            if isinstance(part, DocumentPart):
+                sources.append(part.text)
+            elif isinstance(part, ToolResultPart):
+                sources.append(part.content)
+            elif isinstance(part, TextPart) and (
+                m.role == "user" or (m.role == "system" and not part.text.startswith(FIGURES_NOTE))
+            ):
+                sources.append(part.text)
+    return sources
+
+
 def _decide(router: dict[str, Any], risk: str) -> str:
     if risk == "high":
         return "refuse_injection"
@@ -512,6 +546,25 @@ def _decide(router: dict[str, Any], risk: str) -> str:
     if router["intent"] == "wants_person" or router["sensitive_situation"] != "none":
         return "hand_over"
     return "answer"
+
+
+async def _embed(
+    deps: TurnDeps, state: TurnState, budget: BudgetContext, text: str
+) -> list[float] | None:
+    """The search vector for `text`, or None (search then falls back to keywords alone)."""
+    embedded = await deps.gateway.embed(
+        EmbedRequest(texts=[text], budget=budget, request_id=f"{state.turn_id}-embed")
+    )
+    if not isinstance(embedded, EmbedResult):
+        return None
+    state.cost += embedded.cost_usd
+    return embedded.vectors[0]
+
+
+def _drop(task: asyncio.Task[Any] | None) -> None:
+    """Stops a vector nobody will search with; the gateway still settles what it spent."""
+    if task is not None and not task.done():
+        task.cancel()
 
 
 def router_request(

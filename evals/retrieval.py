@@ -5,7 +5,12 @@ the expected section) is among the top k chunks, for three set-ups: vectors only
 and the hybrid the assistant uses. Query vectors are cached in evals/cache, keyed by the
 question's text, so the run is free once they exist and repeatable in CI.
 
-    uv run python -m evals.retrieval --dsn postgresql://... [--embed-missing]
+With --router-queries it also searches with the router's rewrite of each question (its
+`search_query`), for the vector part, the keyword part or both, so the choice of what a turn
+searches with is measured too. Rewrites are cached in evals/cache/router_queries.jsonl; making
+the missing ones calls the real router (about $0.0002 a question).
+
+    uv run python -m evals.retrieval --dsn postgresql://... [--embed-missing] [--router-queries]
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from kaskazi.retrieval.store import load_corpus, search
 
 HERE = Path(__file__).parent
 QUERY_CACHE = HERE / "cache" / "query_vectors.jsonl"
+ROUTER_CACHE = HERE / "cache" / "router_queries.jsonl"
 
 
 def load_questions() -> list[dict[str, object]]:
@@ -73,7 +79,50 @@ async def embed_missing(texts: list[str], cache: dict[str, list[float]]) -> int:
     return tokens
 
 
-async def run(dsn: str, k: int, embed: bool) -> dict[str, object]:
+async def router_queries(questions: list[str]) -> dict[str, str]:
+    """The router's search query for each question, as a first message of a conversation."""
+    from kaskazi.assistant.turn import router_request
+    from kaskazi.controls.pii import Vault, mask
+    from kaskazi.llm.contract import BudgetContext
+    from kaskazi.llm.providers.anthropic import AnthropicProvider
+    from kaskazi.llm.routing import load_routes
+
+    cache: dict[str, str] = {}
+    if ROUTER_CACHE.exists():
+        for line in ROUTER_CACHE.read_text().splitlines():
+            row = json.loads(line)
+            cache[row["question"]] = row["search_query"]
+    missing = [q for q in questions if q not in cache]
+    if missing:
+        routes, _ = load_routes()
+        settings = routes["assistant.router"].primary_settings()
+        provider = AnthropicProvider(
+            os.environ["ANTHROPIC_KEY"], os.environ["ANTHROPIC_WORKSPACE_ID"]
+        )
+        gate = asyncio.Semaphore(6)
+
+        async def one(question: str) -> None:
+            async with gate:
+                request = router_request(
+                    [], mask(question, Vault()).text, BudgetContext(), "eval-retrieval"
+                )
+                reply = await provider.generate(request, settings)
+                cache[question] = str((reply.structured or {}).get("search_query") or question)
+
+        try:
+            await asyncio.gather(*(one(q) for q in missing))
+        finally:
+            await provider.aclose()
+        ROUTER_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        ROUTER_CACHE.write_text(
+            "".join(
+                json.dumps({"question": q, "search_query": cache[q]}) + "\n" for q in sorted(cache)
+            )
+        )
+    return cache
+
+
+async def run(dsn: str, k: int, embed: bool, rewrites: bool = False) -> dict[str, object]:
     documents = read_corpus()
     chunks = chunk_corpus(documents)
     version = corpus_version(chunks, "text-embedding-3-small")
@@ -82,22 +131,34 @@ async def run(dsn: str, k: int, embed: bool) -> dict[str, object]:
         await load_corpus(conn, version, documents, chunks)
 
     questions = load_questions()
+    texts = [str(q["question"]) for q in questions]
+    rewritten = await router_queries(texts) if rewrites else {}
     cache = read_cache()
-    tokens = await embed_missing([str(q["question"]) for q in questions], cache) if embed else 0
+    tokens = await embed_missing(texts + list(rewritten.values()), cache) if embed else 0
 
-    setups = {"vector": (True, False), "keyword": (False, True), "hybrid": (True, True)}
+    # (what the vector part searches with, what the keyword part searches with)
+    setups: dict[str, tuple[str | None, str | None]] = {
+        "vector": ("question", None),
+        "keyword": (None, "question"),
+        "hybrid": ("question", "question"),
+    }
+    if rewrites:
+        setups["hybrid, router keywords"] = ("question", "rewrite")
+        setups["hybrid, router rewrite"] = ("rewrite", "rewrite")
     results: dict[str, dict[str, float]] = {}
     misses: list[dict[str, object]] = []
-    for name, (use_vector, use_keyword) in setups.items():
+    for name, (vector_from, keywords_from) in setups.items():
         doc_hits = section_hits = reciprocal = 0.0
         for q in questions:
             audience = ["customer", "staff"] if q.get("audience") == "staff" else ["customer"]
-            vector = cache.get(str(q["question"])) if use_vector else None
+            text = str(q["question"])
+            source = {"question": text, "rewrite": rewritten.get(text, text)}
+            vector = cache.get(source[vector_from]) if vector_from else None
             async with pool.acquire() as conn, conn.transaction():
                 found = await search(
                     conn,
                     version=version,
-                    query=str(q["question"]) if use_keyword else "",
+                    query=source[keywords_from] if keywords_from else "",
                     query_vector=vector,
                     audiences=audience,
                     k=k,
@@ -143,8 +204,9 @@ def main() -> int:
     parser.add_argument("--k", type=int, default=8)
     parser.add_argument("--embed-missing", action="store_true")
     parser.add_argument("--show-misses", action="store_true")
+    parser.add_argument("--router-queries", action="store_true")
     args = parser.parse_args()
-    report = asyncio.run(run(args.dsn, args.k, args.embed_missing))
+    report = asyncio.run(run(args.dsn, args.k, args.embed_missing, args.router_queries))
     misses = report.pop("hybrid_section_misses")
     print(json.dumps(report, indent=2))
     if args.show_misses:
