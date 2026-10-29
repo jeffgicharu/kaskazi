@@ -125,3 +125,16 @@ label the run:
 The report's fingerprint covers that file, so it can only ever count for a release that adopts
 it word for word. A gateway started with another routes file says so on `/healthz`, and the
 server's release check refuses it.
+
+## What the measurements chose
+
+| Setting | Choice | Evidence |
+|---|---|---|
+| Router | Haiku 5.5, low effort, no thinking | `router-2026-10-29.json`: as fast and as accurate as adaptive thinking on 49 labelled messages; gpt-5.4-mini cost 20 times as much |
+| Retrieval | a first message searched by its own words for vectors and by the router's rewrite for keywords | `retrieval-2026-10-29.json`: document recall 0.969, against 0.929 for the rewrite alone |
+| Answers | Haiku 5.5, low effort, adaptive thinking | `answers-2026-10-29-variant-answer-no-thinking.json`: without thinking, replies were a second faster at the median, but two of three changes produced no confirmation card and fewer answers cited a passage; it fails the gate |
+| Judge | Haiku 5.5, high effort, prompt 1.2.0 | `judge-2026-10-29.json` |
+
+The first full run of the golden set (`answers-2026-10-29-10831e846c63.json`) also changed the
+product: customers describing a bereavement or money troubles had been handed to a person with
+nothing else, though the documents answer their questions; they now get an answer and a person.
