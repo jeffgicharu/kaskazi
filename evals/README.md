@@ -6,7 +6,7 @@ that chose it. The staff console shows them all under **AI lead → Evaluations*
 
 | What | Set | Command | Cost a run |
 |---|---|---|---|
-| The whole assistant, end to end | `golden/questions.jsonl`, 130 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
+| The whole assistant, end to end | `golden/questions.jsonl`, 131 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
 | The router | `router_cases.jsonl`, 49 messages | `python -m evals.router` | about $0.06 |
 | Retrieval | the golden set's 98 document questions, 8 of them staff questions | `python -m evals.retrieval` | free (cached vectors) |
 | The judge | `judge/calibration.jsonl`, 56 hand-labelled criteria | `python -m evals.judge_calibration measure` | about $0.06 |
@@ -18,7 +18,7 @@ Run them with `uv run` from the repository root, against the local stack with th
 
 ## The golden set
 
-130 cases, each asked as one of the three sample customers in a fresh conversation:
+131 cases, each asked as one of the three sample customers in a fresh conversation:
 
 - **90 answerable questions** about the bank's products, fees and rules, written in the way
   customers write: short, misspelt, in English, Swahili and a mix of the two. Each has the
@@ -26,10 +26,11 @@ Run them with `uv run` from the repository root, against the local stack with th
   the question turns on; the rest are details a thorough answer would add.
 - **11 the documents can't answer** (mortgages, treasury bonds, phone wallets). The criteria are
   behaviour: say so, invent nothing, offer a person.
-- **13 that need the bank's records** through the tools: balances, a loan worked out from the
+- **14 that need the bank's records** through the tools: balances, a loan worked out from the
   customer's own figures, a product suggestion (and a customer with nothing to suggest), the
-  state of a loan application, and three changes that must wait for the customer's
-  confirmation.
+  state of a loan application, three changes that must wait for the customer's confirmation,
+  and a payment the chat can't make (to an account at another bank), which it must say so
+  about rather than attempt.
 - **13 about behaviour**: off-topic requests, injection attempts in English, Swahili and fake
   markup, fraud, bereavement, money troubles, asking for a person, a PIN or card number typed
   into the chat, and a greeting.
@@ -52,6 +53,17 @@ Each answer is graded twice.
 **In code**, for what can be checked without reading: the outcome (answered, refused, handed
 over), whether a document answer cites a passage, whether a change produced a confirmation
 card, whether a warning appeared.
+
+The confirmation check was wrong until the evening of 29 October: it passed when the reply
+carried any card, so a balance card read on the way satisfied it while the change it was meant
+to confirm never came. The reports before then overstate *card offered*. Tightening it to
+confirmation cards showed two faults it had hidden. "Send 500 to Rose" couldn't be matched to
+the saved recipient Rose Kiprop, because the first name and the full name were masked to
+different placeholders; the recipients' tool now gives each first name too, masked the same way
+as the customer's words. And the case "Pay 50,000 to Mutiso Building Supplies" expected a card
+for a payment the chat can't make: the recipient is at another bank, and the assistant was right
+to say so. The case now expects that answer, and a move between the customer's own accounts was
+added as the third change to confirm.
 
 **By a judge** for the facts: Claude Sonnet 5.5 with the `evals.judge` prompt reads the question,
 the answer, the passages it cited and the records the bank's systems returned to it, and gives
@@ -205,6 +217,36 @@ server's release check refuses it.
 | Retrieval | a first message searched by its own words for vectors and by the router's rewrite for keywords | `retrieval-2026-10-29.json`: document recall 0.969, against 0.929 for the rewrite alone |
 | Answers | Haiku 5.5, low effort, adaptive thinking | `answers-2026-10-29-variant-answer-no-thinking.json`: without thinking, replies were a second faster at the median, but two of three changes produced no confirmation card and fewer answers cited a passage; it fails the gate |
 | Judge | Sonnet 5.5, medium effort, prompt 1.2.0 | `judge-2026-10-29.json`: agreed with all 56 hand labels; not the model that answers |
+| Tool rounds | the customer's account and card references in the first note, and prompt 1.4.0 telling the model to use them, and to call the tools for everything else | below |
+
+**Fewer model rounds for questions about the customer's own accounts.** Each model round adds
+about a second to a reply. Profiling showed "my balances and my last few transactions" taking
+three: one for `get_accounts`, one for the statement it needed an account reference for, one to
+answer. Three changes followed, each measured:
+
+1. Reads the model asks for in one response now run concurrently (they ran one after another).
+2. The customer note at the start of a conversation carries the account and card references, and
+   prompt 1.2.0 asks for independent reads together. The golden run on that
+   (`answers-2026-10-29-df6ec0555c34.json`) showed no fewer rounds: the 10 tool cases measured
+   before took 22 rounds, and still did, because the model looked the references up anyway.
+3. Prompt 1.3.0 tells it to use the note's references directly. In a trial on the 13 tool cases,
+   every one took the minimum of two rounds (read, then answer). In the full run
+   (`answers-2026-10-29-c366910adf55.json`) the statement question kept its gain, two rounds and
+   4.7 seconds against 8.0, but the card block took three again: the model checked the card's
+   status before preparing the block, which is reasonable. Across the 13 tool cases, 27 rounds
+   against 28, and no change in the median reply (6.0 seconds against 5.4; runs vary by about
+   that much).
+
+4. The consistency run on 1.3.0 (`consistency-2026-10-29-c366910adf55.json`) then found what the
+   golden run hadn't: asked "what's the limit on my credit card?", the assistant said two times
+   in three that it couldn't see the limit. It had taken the note's card reference for all it
+   knew and never called `get_cards`. Prompt 1.4.0 says the note holds the references and
+   nothing else, and that a balance, a limit, a status or transactions come from the tools. In
+   two trial runs of the tool cases every key fact was stated and the statement question kept
+   its two rounds. TOOL_ROUNDS_FINAL
+
+So the gain is real for questions that need an account reference and small overall, and it took
+the consistency run, not the golden set, to catch the cost of the first attempt.
 
 The first full run of the golden set (`answers-2026-10-29-10831e846c63.json`) also changed the
 product: customers describing a bereavement or money troubles had been handed to a person with

@@ -59,7 +59,7 @@ def problem(case: dict[str, Any], turn: dict[str, Any]) -> str | None:
         return f"outcome {outcome}"
     if case["kind"] == "answerable" and not reply["sources"]:
         return "the answer cites nothing"
-    if case.get("expect_card") and not reply["cards"]:
+    if case.get("expect_card") and not any(c["type"] == "confirm" for c in reply["cards"]):
         return "no confirmation card"
     return None
 

@@ -229,7 +229,9 @@ async def run_case(
         notice_ok = not case.get("expect_notice") or bool(reply.get("notice"))
         checks["behaviour_ok"] = outcome_ok and notice_ok
     if case.get("expect_card"):
-        checks["card_offered"] = bool(reply.get("cards"))
+        # A confirmation card, not any card: a balance card once passed this check while the
+        # change it was meant to confirm never came.
+        checks["card_offered"] = any(c.get("type") == "confirm" for c in reply.get("cards", []))
     criteria: list[dict[str, Any]] = []
     judge_cost = 0.0
     if case.get("expected_facts"):
