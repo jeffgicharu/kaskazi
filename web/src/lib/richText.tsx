@@ -14,9 +14,15 @@ const CLOSE = "";
 const TOKEN = new RegExp(`(\\*\\*[^*]+\\*\\*|${OPEN}[\\d,]+${CLOSE})`, "g");
 
 export function joinSegments(segments: Segment[]): string {
-  return segments
-    .map((s) => (s.cites.length ? `${s.text.replace(/\s+$/, "")}${OPEN}${s.cites.join(",")}${CLOSE}${s.text.match(/\s+$/)?.[0] ?? ""}` : s.text))
-    .join("");
+  const pieces = segments.map((s) =>
+    s.cites.length ? `${s.text.replace(/\s+$/, "")}${OPEN}${s.cites.join(",")}${CLOSE}${s.text.match(/\s+$/)?.[0] ?? ""}` : s.text,
+  );
+  // A model sometimes ends one segment with a sentence and starts the next without a space
+  // ("that day." then "Branches are…"), which would read "that day.¹Branches".
+  return pieces.reduce((joined, piece, i) => {
+    const sentenceEnded = /[.!?:;]\s*$/.test(segments[i - 1]?.text ?? "") && !/\s$/.test(joined);
+    return joined + (i > 0 && sentenceEnded && /^[^\s.,;:!?)]/.test(piece) ? " " : "") + piece;
+  }, "");
 }
 
 type CiteRenderer = (numbers: number[], key: string) => ReactNode;

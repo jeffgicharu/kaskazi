@@ -25,4 +25,15 @@ describe("RichText", () => {
     const mark = screen.getByText("[1]");
     expect(mark.previousSibling?.textContent).toBe("It costs KES 35");
   });
+
+  it("keeps a space between sentences that arrive in separate segments", () => {
+    const text = joinSegments([
+      { text: "They open at 9:00 am that day.", cites: [1] },
+      { text: "Branches are closed on Sundays.", cites: [] },
+    ]);
+    expect(text).toContain(" Branches");
+    // Segments that already carry their spacing, or continue a sentence, are joined as they are.
+    expect(joinSegments([{ text: "It costs KES 35 ", cites: [] }, { text: "a month.", cites: [] }])).toBe("It costs KES 35 a month.");
+    expect(joinSegments([{ text: "The fee is KES 30", cites: [] }, { text: ", taken monthly.", cites: [] }])).toBe("The fee is KES 30, taken monthly.");
+  });
 });

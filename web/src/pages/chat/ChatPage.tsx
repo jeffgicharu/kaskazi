@@ -151,7 +151,7 @@ function Chat({ session }: { session: Extract<Session, { signed_in: true }> }) {
             <li className="msg msg--assistant msg--welcome">
               <div className="bubble bubble--assistant">
                 <p>
-                  Hello {session.first_name}. I'm Kaskazi's assistant. I answer from the bank's own documents and show you
+                  Hello {session.first_name}. I'm Kaskazi's AI assistant. I answer from the bank's own documents and show you
                   where each answer comes from, and I'll always ask you to confirm before anything on your account changes.
                 </p>
               </div>
