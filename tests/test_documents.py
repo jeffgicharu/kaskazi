@@ -121,3 +121,57 @@ def test_documents_are_checked_against_each_other_and_the_bank(
         [(slip, [])], customer_name="Faith Chebet Kiprop", customer_id_number=None, credits=[]
     )
     assert {c.name for c in stranger if c.ok is False} == {"name_on_payslip", "net_pay_credited"}
+
+
+def test_an_image_too_large_to_decode_is_refused_before_it_is_decoded() -> None:
+    import io
+
+    from PIL import Image
+
+    from kaskazi.documents import desk
+
+    small_file = io.BytesIO()
+    Image.new("L", (12000, 12000), 255).save(small_file, "PNG", optimize=True)
+    assert len(small_file.getvalue()) < desk.MAX_BYTES  # small on disk, 144 megapixels inside
+    # Pillow only warns at this size; the desk refuses it.
+    with pytest.warns(Image.DecompressionBombWarning), pytest.raises(desk.DeskError, match="large"):
+        desk._validate(small_file.getvalue())
+
+    photo = io.BytesIO()
+    Image.new("RGB", (4000, 3000), (200, 200, 200)).save(photo, "JPEG")
+    assert desk._validate(photo.getvalue()) == "image/jpeg"
+
+
+def _expanding_pdf(expands_to: int) -> bytes:
+    """A one-page PDF whose drawing instructions are a small file that inflates to `expands_to`."""
+    import zlib
+
+    packed = zlib.compress(b" " * expands_to, 9)
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>",
+        f"<< /Length {len(packed)} /Filter /FlateDecode >>\nstream\n".encode()
+        + packed
+        + b"\nendstream",
+    ]
+    out, offsets = bytearray(b"%PDF-1.4\n"), []
+    for n, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{n} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    out += b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
+    out += (
+        f"trailer << /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    )
+    return bytes(out)
+
+
+async def test_a_pdf_built_to_expand_is_refused_without_being_expanded() -> None:
+    from kaskazi.documents import desk
+
+    data = _expanding_pdf(30_000_000)  # about 30 KB on disk
+    assert len(data) < 100_000 and desk._validate(data) == "application/pdf"
+    with pytest.raises(desk.DeskError, match="can't be read"):
+        await desk.read_text(data)

@@ -12,6 +12,7 @@ document's text, can't be high however sure the model was.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import re
@@ -278,14 +279,21 @@ def score(
 # --- Asking the model ----------------------------------------------------------------------------
 
 
+# Decoding a large photo takes tens of megabytes; one at a time keeps a burst of uploads inside
+# the API's memory.
+_DECODING = asyncio.Semaphore(1)
+
+
 def prepare_image(data: bytes) -> tuple[str, str, int]:
     """Downscaled to at most 1600 pixels a side and re-encoded as PNG: no EXIF, no metadata.
     Returns the media type, the image in base64, and the original's long side in pixels."""
     from PIL import Image
 
     with Image.open(io.BytesIO(data)) as opened:
+        full_size = opened.size
+        opened.draft("RGB", (1600, 1600))  # a JPEG decodes straight to a smaller size
         img = opened.convert("RGB")
-    long_side = max(img.size)
+    long_side = max(full_size)
     img.thumbnail((1600, 1600))
     out = io.BytesIO()
     img.save(out, "PNG", optimize=True)
@@ -337,7 +345,10 @@ async def extract(
     """Reads one document. `generate` is the gateway client's generate method."""
     path: Path_ = "text" if pdf_text is not None else "image"
     masked_text = mask(pdf_text, vault, known_names).text if pdf_text is not None else None
-    prepared = prepare_image(image) if image is not None else None
+    prepared = None
+    if image is not None:
+        async with _DECODING:
+            prepared = await asyncio.to_thread(prepare_image, image)
     request = request_for(
         kind,
         path,

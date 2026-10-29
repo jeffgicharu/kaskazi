@@ -610,15 +610,14 @@ async def review_text(doc_id: uuid.UUID, s: Reviewer, svc: Svc) -> dict[str, Any
     """A PDF's text as the desk read it, and the text hidden on its pages, for the reviewer to
     see each field's evidence in place."""
     from kaskazi.documents import desk
-    from kaskazi.documents.text import read_pdf
 
     try:
         media_type, data, _ = await desk.file(svc.pool, s.sandbox_id, doc_id)
+        if media_type != "application/pdf":
+            return {"visible": None, "hidden": []}
+        text = await desk.read_text(data)
     except desk.DeskError as error:
         raise _desk_failure(error) from error
-    if media_type != "application/pdf":
-        return {"visible": None, "hidden": []}
-    text = read_pdf(data)
     return {"visible": text.visible, "hidden": text.hidden}
 
 

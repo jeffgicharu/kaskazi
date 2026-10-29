@@ -9,6 +9,7 @@ reviewer. The AI reads and checks; a person decides every loan, and an approved 
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import json
@@ -27,7 +28,7 @@ from kaskazi.db.pool import visitor_tx
 from kaskazi.documents import checks
 from kaskazi.documents.extract import FIELDS, Extraction, Field, amount, extract
 from kaskazi.documents.extract import Kind as DocKind
-from kaskazi.documents.text import read_pdf
+from kaskazi.documents.text import PdfText, read_pdf
 from kaskazi.llm.client import GatewayClient
 from kaskazi.llm.contract import BudgetContext
 from kaskazi.release.fingerprint import ROOT
@@ -35,6 +36,7 @@ from kaskazi.release.fingerprint import ROOT
 SAMPLES = ROOT / "samples" / "visitor"
 MAX_BYTES = 3 * 1024 * 1024
 MAX_PAGES = 3
+MAX_PIXELS = 16_000_000  # a 12-megapixel phone photo fits; about 48 MB once decoded
 NEEDED: tuple[DocKind, ...] = ("payslip", "id")
 TITLES = {"payslip": "Payslip", "id": "Identity card", "statement": "Bank statement"}
 LABELS = {
@@ -123,15 +125,26 @@ def sniff(data: bytes) -> str:
     raise DeskError("Only PDF, PNG and JPEG files can be read.")
 
 
+async def read_text(data: bytes) -> PdfText:
+    """A PDF's text, read off the event loop so a slow file doesn't hold up other visitors."""
+    try:
+        return await asyncio.to_thread(read_pdf, data)
+    except Exception as exc:  # pypdf raises many kinds, its limits included
+        raise DeskError("That PDF can't be read.") from exc
+
+
 def _validate(data: bytes) -> str:
     if len(data) > MAX_BYTES:
         raise DeskError("A document can be 3 MB at most.")
     media_type = sniff(data)
     if media_type == "application/pdf":
-        from pypdf import PdfReader
+        from pypdf import apply_configuration
+
+        from kaskazi.documents.text import LIMITED, opened
 
         try:
-            pages = len(PdfReader(io.BytesIO(data)).pages)
+            with apply_configuration(LIMITED):
+                pages = len(opened(data).pages)
         except Exception as exc:  # pypdf raises many kinds on a broken file
             raise DeskError("That PDF can't be opened.") from exc
         if pages > MAX_PAGES:
@@ -141,9 +154,14 @@ def _validate(data: bytes) -> str:
 
         try:
             with Image.open(io.BytesIO(data)) as img:
+                width, height = img.size  # from the header: nothing is decoded yet
                 img.verify()
         except Exception as exc:
             raise DeskError("That image can't be opened.") from exc
+        # A small file can hold a huge image (a 168 KB PNG of 12,000 by 12,000 pixels), and
+        # decoding it would take more memory than the API is allowed.
+        if width * height > MAX_PIXELS:
+            raise DeskError("That image is too large to read. A phone photo of the page is enough.")
     return media_type
 
 
@@ -207,7 +225,7 @@ async def add_document(
         if status != "documents_requested":
             raise DeskError("This application isn't taking documents now.", 409)
 
-    pdf = read_pdf(data) if media_type == "application/pdf" else None
+    pdf = await read_text(data) if media_type == "application/pdf" else None
     if pdf is not None and not pdf.visible.strip():
         raise DeskError(
             "This PDF has no text to read (it may be a scan). Give a photo of it instead."
