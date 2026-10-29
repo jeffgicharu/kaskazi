@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { ApiError, api } from "../../api/client";
 import { Wordmark } from "../../components/Brand";
+import { Breeze } from "../../components/Breeze";
 import { useEventStream } from "../../hooks/useEventStream";
 import { when } from "../../lib/format";
 import { EvaluationsView, FeedbackView, MonitoringView, PromptsView } from "./LeadViews";
@@ -81,6 +82,7 @@ function Console({ role }: { role: Role }) {
         </header>
       </div>
       <main id="main" className="console-main">
+        <Breeze />
         {role === "ai_lead" ? <LeadConsole /> : role === "reviewer" ? <ReviewQueue /> : <HandoverQueue />}
       </main>
     </div>

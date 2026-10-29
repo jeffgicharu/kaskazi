@@ -3,8 +3,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function noAxeViolations(page: Page, where: string) {
   // Measure what people see once things settle: contrast is wrong mid fade-in by definition.
+  // Endless loops never settle, and the landing page's scroll-driven entrances only move with the
+  // scroll (and change no colour), so neither is waited for.
   await page.waitForFunction(() =>
-    document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
+    document
+      .getAnimations()
+      .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity || !(a.timeline instanceof DocumentTimeline)),
   );
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(results.violations.map((v) => `${where}: ${v.id} at ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);

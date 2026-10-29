@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { Monsoon } from "./monsoon";
+import { useMonsoon } from "../../lib/useMonsoon";
 
 // The stage behind the landing page's headline: the kaskazi blowing in from the north-east over a
 // stylised coast, with a dhow under sail. It shows a still frame first (SVG, the same flow worked
 // out once, drawn just after the first paint), which is all that visitors who prefer reduced
-// motion, or whose device can't spare the GPU, ever see. Elsewhere the moving version (./monsoon,
-// its own small chunk) is loaded when the visitor first moves, scrolls or touches the page, once it
-// has loaded, and fades in over the still frame: the wind rises as they arrive, and nothing heavy
-// runs while the page is still settling.
+// motion, or whose device can't spare the GPU, ever see. Elsewhere the moving version starts as
+// soon as the page has loaded and fades in over the still frame within a second of arriving.
 
 const W = 1200;
 const H = 600;
@@ -64,16 +62,6 @@ function streaks(count: number) {
   return out;
 }
 
-/** Whether this visitor gets the moving wind: motion welcome, data not saved, a capable device. */
-function canAnimate(): boolean {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
-  if (nav.connection?.saveData) return false;
-  if (nav.deviceMemory !== undefined && nav.deviceMemory < 4) return false;
-  if (nav.hardwareConcurrency !== undefined && nav.hardwareConcurrency < 4) return false;
-  return true;
-}
-
 /** A dhow under its lateen sail, close inshore: the wind's destination, and the brand's mark. */
 function Dhow() {
   return (
@@ -90,62 +78,15 @@ function Dhow() {
 
 export function WindStage() {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [live, setLive] = useState(false);
   const [drawn, setDrawn] = useState(false);
   const lines = useMemo(() => (drawn ? streaks(90) : []), [drawn]);
+  // The wind parts around the deck of cards beside the headline.
+  const live = useMonsoon(canvas, 1000, 450, ".deck-stack");
 
   // The still frame's streaks are drawn just after the first paint, so they never delay the text.
   useEffect(() => {
     const frame = requestAnimationFrame(() => setDrawn(true));
     return () => cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
-    if (!canAnimate()) return;
-    let monsoon: Monsoon | null = null;
-    let cancelled = false;
-    let idle = 0;
-    const begin = () => {
-      void import("./monsoon").then(({ startMonsoon }) => {
-        const el = canvas.current;
-        if (cancelled || !el) return;
-        const small = window.matchMedia("(max-width: 720px)").matches;
-        const card = () => el.closest("section")?.querySelector(".story-stage")?.getBoundingClientRect() ?? null;
-        monsoon = startMonsoon(el, small ? 450 : 1000, card, () => setLive(true), () => {
-          monsoon?.stop();
-          monsoon = null;
-          setLive(false);
-        });
-      });
-    };
-    // On the visitor's first move, scroll, touch or key, once the page has loaded: never while it
-    // is still settling, and never for a tab nobody is looking at.
-    const WAKE = ["pointermove", "scroll", "touchstart", "keydown"] as const;
-    const wake = () => {
-      WAKE.forEach((e) => window.removeEventListener(e, wake));
-      idle = window.requestIdleCallback ? window.requestIdleCallback(begin, { timeout: 600 }) : window.setTimeout(begin, 50);
-    };
-    const schedule = () => WAKE.forEach((e) => window.addEventListener(e, wake, { once: true, passive: true }));
-    if (document.readyState === "complete") schedule();
-    else window.addEventListener("load", schedule, { once: true });
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onMotion = () => {
-      if (motion.matches) {
-        monsoon?.stop();
-        monsoon = null;
-        setLive(false);
-      }
-    };
-    motion.addEventListener("change", onMotion);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("load", schedule);
-      WAKE.forEach((e) => window.removeEventListener(e, wake));
-      motion.removeEventListener("change", onMotion);
-      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
-      window.clearTimeout(idle);
-      monsoon?.stop();
-    };
   }, []);
 
   return (

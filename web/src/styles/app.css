@@ -226,7 +226,7 @@
 
 .wind-live {
   opacity: 0;
-  transition: opacity 1.6s var(--ease-out);
+  transition: opacity 700ms var(--ease-out);
 }
 
 .wind-stage[data-live="yes"] .wind-live {
@@ -243,7 +243,7 @@
 }
 
 .wind-streaks {
-  animation: fade 1.2s var(--ease-out) both;
+  animation: fade 500ms var(--ease-out) both;
 }
 
 .dot-ink {
@@ -354,79 +354,205 @@
   }
 }
 
-/* One turn of the assistant, in four beats. Each piece is hidden until its beat, then rises into
-   place at its own depth, so the card reads as layered when it tilts. */
-.story {
+/* The deck: cards stacked in depth, the front one playing its steps, the next ones' edges showing
+   behind it. Every card is the same fixed size, absolutely placed, and every step only fades and
+   moves, so nothing in the hero ever changes size while it plays. */
+.deck {
   margin: 0;
   justify-self: end;
-  width: min(100%, 440px);
-  perspective: 1100px;
+  width: min(100%, 460px);
+  perspective: 1200px;
 }
 
-.story-stage {
-  display: grid;
-  gap: 10px;
+.deck-stack {
+  position: relative;
+  height: 316px;
+  margin-top: 40px;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 700ms var(--ease-out);
+}
+
+.deck-card {
+  position: absolute;
+  inset: 0;
   padding: var(--space-5);
   border-radius: 22px;
-  background: color-mix(in srgb, var(--card) 94%, transparent);
+  background: var(--card);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-2);
-  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
-  transform-style: preserve-3d;
-  transition: transform 700ms var(--ease-out);
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
-.story-stage > * {
-  opacity: 0;
-  transform: translateY(12px);
+  overflow: hidden;
   transition:
-    opacity 480ms var(--ease-out),
-    transform 640ms var(--ease-out);
+    transform 560ms var(--ease-out),
+    opacity 420ms var(--ease-out);
 }
 
-.story-stage > .is-on {
+.deck-card--front {
+  z-index: 4;
+  transform: translate3d(0, 0, 0);
+}
+
+.deck-card--next {
+  z-index: 3;
+  transform: translate3d(20px, -20px, -50px) scale(0.965);
+  background: color-mix(in srgb, var(--card) 70%, var(--paper-deep));
+}
+
+.deck-card--after {
+  z-index: 2;
+  transform: translate3d(40px, -40px, -100px) scale(0.93);
+  background: color-mix(in srgb, var(--card) 40%, var(--paper-deep));
+  opacity: 0.75;
+}
+
+.deck-card--hidden {
+  z-index: 1;
+  transform: translate3d(52px, -52px, -140px) scale(0.9);
+  opacity: 0;
+}
+
+/* The card that has just played leaves forward and to the left. */
+.deck-card--gone {
+  z-index: 5;
+  transform: translate3d(-70px, 26px, 40px) rotate(-7deg);
+  opacity: 0;
+}
+
+.deck-body {
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  height: 100%;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  transition: opacity 240ms var(--ease-out);
+}
+
+.deck-card:not(.deck-card--front) .deck-body {
+  opacity: 0;
+}
+
+/* Each step: hidden until its moment, then up into place, quickly. */
+.deck-bubble,
+.deck-note,
+.deck-source,
+.deck-slip,
+.deck-sms,
+.deck-field,
+.deck-check,
+.deck-console,
+.deck-console-picked,
+.deck-meter,
+.deck-pass,
+.deck-event {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 260ms var(--ease-out),
+    transform 320ms var(--ease-out);
+}
+
+.deck-body .is-on {
   opacity: 1;
-  transform: translateZ(var(--z, 18px));
+  transform: none;
 }
 
-.story-bubble {
+.deck-kicker {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.deck-bubble {
   position: relative;
   overflow: hidden;
   max-width: 90%;
-  padding: 10px 14px;
+  padding: 9px 13px;
 }
 
-.story-bubble--customer {
+.deck-bubble--customer {
   justify-self: end;
   border-radius: 16px 16px 4px 16px;
   background: var(--customer-bubble);
   color: var(--on-customer-bubble);
-  --z: 34px;
 }
 
-.story-bubble--assistant {
+.deck-bubble--assistant {
   justify-self: start;
+  display: grid;
   border-radius: 16px 16px 16px 4px;
   background: var(--card);
   border: 1px solid var(--line);
   color: var(--ink);
-  --z: 30px;
+}
+
+/* Typing dots and the answer share a cell, so the answer replaces them without moving anything. */
+.deck-bubble--assistant > * {
+  grid-area: 1 / 1;
+  transition: opacity 220ms var(--ease-out);
+}
+
+.deck-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  height: 1.4em;
+}
+
+.deck-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  animation: deck-dot 900ms ease-in-out infinite;
+}
+
+.deck-dots span:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.deck-dots span:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes deck-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.deck-answer {
+  opacity: 0;
+}
+
+.deck-bubble--assistant.is-answered .deck-dots {
+  opacity: 0;
+}
+
+.deck-bubble--assistant.is-answered .deck-answer {
+  opacity: 1;
 }
 
 /* A detail and its placeholder share a cell, so masking swaps them without moving anything. */
-.story-pii {
+.deck-pii {
   display: inline-grid;
   vertical-align: bottom;
 }
 
-.story-pii > span {
+.deck-pii > span {
   grid-area: 1 / 1;
-  transition: opacity 360ms var(--ease-out);
+  transition: opacity 240ms var(--ease-out);
 }
 
-.story-pii-token {
+.deck-pii-token {
   opacity: 0;
   justify-self: start;
   padding: 0 5px;
@@ -436,28 +562,27 @@
   font-size: 0.82em;
 }
 
-.story-pii.is-on .story-pii-raw {
+.deck-pii.is-on .deck-pii-raw {
   opacity: 0;
 }
 
-.story-pii.is-on .story-pii-token {
+.deck-pii.is-on .deck-pii-token {
   opacity: 1;
 }
 
-.story-scan {
+.deck-scan {
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--saffron) 55%, transparent), transparent);
   transform: translateX(-100%);
-  opacity: 0;
   pointer-events: none;
 }
 
-.story-scan.is-on {
-  animation: story-scan 900ms var(--ease-out) both;
+.deck-scan.is-on {
+  animation: deck-scan 560ms var(--ease-out) both;
 }
 
-@keyframes story-scan {
+@keyframes deck-scan {
   0% {
     transform: translateX(-100%);
     opacity: 1;
@@ -468,121 +593,34 @@
   }
 }
 
-.story-note {
+.deck-note {
   justify-self: end;
-  margin-top: -4px;
-  font-size: 0.74rem;
+  margin-top: -3px;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
   color: var(--muted);
-  --z: 20px;
 }
 
-.story-docs {
-  display: grid;
-  grid-template-columns: 0.8fr 1.5fr 0.8fr;
-  gap: 8px;
-  align-items: end;
-  margin: 4px 0;
-  transform-style: preserve-3d;
-  --z: 8px;
-}
-
-.story-doc {
-  min-height: 62px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-  line-height: 1.3;
-  opacity: 0;
-  transform: translateY(16px) rotateX(55deg);
-  transform-origin: 50% 100%;
-  transition:
-    opacity 480ms var(--ease-out),
-    transform 720ms var(--ease-out),
-    box-shadow 600ms var(--ease-out),
-    border-color 600ms var(--ease-out);
-}
-
-.story-docs.is-on .story-doc {
-  opacity: 1;
-  transform: translateZ(14px);
-}
-
-.story-docs.is-on .story-doc:nth-child(2) {
-  transition-delay: 90ms;
-  transform: translateZ(30px);
-  border-color: var(--saffron);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--saffron) 26%, transparent), var(--shadow-1);
-}
-
-.story-docs.is-on .story-doc:nth-child(3) {
-  transition-delay: 180ms;
-}
-
-.story-doc--lit {
-  display: grid;
-  gap: 4px;
-  background: var(--card);
-  color: var(--ink);
-}
-
-.story-doc-title {
-  font-size: 0.66rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-}
-
-/* The cited passage lights up: a highlight sweeps in behind it (scaled, so it costs no repaint). */
-.story-doc-passage {
-  position: relative;
-  isolation: isolate;
-  font-weight: 500;
-  font-size: 0.74rem;
-}
-
-.story-doc-passage::before {
-  content: "";
-  position: absolute;
-  inset: -1px -2px;
-  z-index: -1;
-  border-radius: 3px;
-  background: var(--saffron-soft);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-  transition: transform 700ms var(--ease-out) 520ms;
-}
-
-.story-docs.is-on .story-doc-passage::before {
-  transform: scaleX(1);
-}
-
-.story-cite {
+.deck-cite {
   display: inline-grid;
   place-items: center;
   width: 18px;
   height: 18px;
-  margin-left: 3px;
+  margin: 0 2px 0 3px;
   border-radius: 999px;
   background: var(--saffron-soft);
   border: 1px solid var(--saffron);
   font-size: 0.66rem;
   font-weight: 700;
   vertical-align: 2px;
-  transform: scale(0.3);
-  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 360ms;
 }
 
-.story-bubble.is-on .story-cite {
-  transform: scale(1);
+.deck-source {
+  font-size: 0.74rem;
+  color: var(--muted);
 }
 
-.story-slip {
+.deck-slip {
   display: grid;
   gap: 4px;
   padding: 12px 14px;
@@ -590,190 +628,451 @@
   background: var(--card);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-1);
-  --z: 46px;
 }
 
-.story-slip-kicker {
-  font-size: 0.64rem;
+.deck-slip-kicker {
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent-ink);
 }
 
-.story-slip-title {
+.deck-slip-title {
   font-family: var(--font-display);
   font-size: 1.02rem;
   font-weight: 600;
 }
 
-.story-slip-row {
+.deck-row {
   display: flex;
   justify-content: space-between;
+  gap: var(--space-3);
   font-size: 0.8rem;
   color: var(--muted);
 }
 
-.story-slip-button {
+.deck-row > span:last-child {
+  color: var(--ink);
+  text-align: right;
+}
+
+.deck-slip-button {
   position: relative;
   justify-self: start;
   display: inline-grid;
+  align-items: center;
   margin-top: 6px;
   min-height: 32px;
   padding: 0 16px;
-  align-items: center;
   border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
   font-size: 0.82rem;
   font-weight: 700;
-  transition: background-color 300ms var(--ease-out);
+  transition: background-color 240ms var(--ease-out);
 }
 
-.story-slip-button > span {
+.deck-slip-button > span {
   grid-area: 1 / 1;
-  transition: opacity 240ms var(--ease-out);
+  transition: opacity 200ms var(--ease-out);
 }
 
-.story-slip-ok {
+.deck-slip-ok {
   opacity: 0;
 }
 
-.story-slip.is-done .story-slip-button {
-  background: var(--ok);
-  animation: story-press 360ms var(--ease-out);
+/* The tap: a press and a ring. */
+.deck-slip-button.is-on {
+  animation: deck-press 300ms var(--ease-out);
 }
 
-.story-slip.is-done .story-slip-confirm {
-  opacity: 0;
-}
-
-.story-slip.is-done .story-slip-ok {
-  opacity: 1;
-}
-
-.story-slip.is-done .story-slip-button::after {
+.deck-slip-button.is-on::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 2px solid color-mix(in srgb, var(--ok) 60%, transparent);
-  animation: story-ripple 900ms var(--ease-out) both;
+  border: 2px solid var(--accent);
+  animation: deck-ring 600ms var(--ease-out) both;
 }
 
-@keyframes story-press {
-  40% {
-    transform: scale(0.92);
+.deck-slip.is-done .deck-slip-button {
+  background: var(--ok);
+}
+
+.deck-slip.is-done .deck-slip-confirm {
+  opacity: 0;
+}
+
+.deck-slip.is-done .deck-slip-ok {
+  opacity: 1;
+}
+
+@keyframes deck-press {
+  45% {
+    transform: scale(0.9);
   }
 }
 
-@keyframes story-ripple {
+@keyframes deck-ring {
   to {
-    transform: scale(1.35, 1.8);
+    transform: scale(1.4, 1.9);
     opacity: 0;
   }
 }
 
-.story-person {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 6px;
-  border-radius: 999px;
-  background: var(--ok-soft);
+.deck-sms {
+  justify-self: start;
+  max-width: 88%;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--paper-deep);
   color: var(--ink);
-  font-size: 0.8rem;
-  --z: 24px;
+  font-size: 0.82rem;
 }
 
-.story-person-face {
-  flex: none;
-  width: 28px;
-  height: 28px;
+.deck-sms-from {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.deck-read {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.deck-page {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 6px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.deck-page-title {
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.deck-page-line {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+/* The page being read: a band sweeps down it. */
+.deck-card--front .deck-page::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 26px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--saffron) 40%, transparent), transparent);
+  animation: deck-read 1200ms var(--ease-out) 150ms both;
+}
+
+@keyframes deck-read {
+  from {
+    transform: translateY(-26px);
+  }
+  to {
+    transform: translateY(150px);
+    opacity: 0;
+  }
+}
+
+.deck-fields {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: end;
+}
+
+.deck-field-name {
+  grid-column: 1 / -1;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.deck-field-value {
+  font-weight: 600;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-confidence {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.deck-check,
+.deck-pass {
+  position: relative;
+  padding-left: 24px;
+  font-size: 0.8rem;
+  color: var(--ink);
+}
+
+.deck-check::before,
+.deck-pass::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 50% 38%, var(--card) 0 20%, transparent 21%),
-    radial-gradient(ellipse 60% 44% at 50% 100%, var(--card) 0 98%, transparent 100%),
+    linear-gradient(45deg, transparent 44%, var(--card) 45% 55%, transparent 56%) 3px 4px / 5px 7px no-repeat,
+    linear-gradient(-45deg, transparent 44%, var(--card) 45% 55%, transparent 56%) 6px 2px / 7px 10px no-repeat,
     var(--ok);
 }
 
-.story-caption {
+.deck-pass {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 4px 12px 4px 28px;
+  border-radius: 999px;
+  background: var(--ok-soft);
+  font-weight: 700;
+}
+
+.deck-pass::before {
+  left: 7px;
+  top: 6px;
+}
+
+.deck-console {
+  display: grid;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.8rem;
+}
+
+.deck-console-head {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.deck-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  letter-spacing: 0.04em;
+}
+
+.deck-console-picked {
+  font-weight: 600;
+  color: var(--saffron);
+}
+
+.deck-measure-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.deck-meter {
+  display: grid;
+  gap: 4px;
+}
+
+.deck-bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--paper-deep);
+  overflow: hidden;
+}
+
+.deck-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--saffron));
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 700ms var(--ease-out) 80ms;
+}
+
+.deck-meter.is-on .deck-bar > span {
+  transform: scaleX(var(--share, 1));
+}
+
+.deck-events {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.deck-event {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.deck-event-kind {
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+
+.deck-hash {
+  color: var(--muted);
+}
+
+/* The labels: each a button to its card, the current one with its card's time running out. */
+/* The labels and the pause button share a row; on a phone the labels wrap beside it. */
+.deck-caption {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
 
-.story-steps {
+.deck-steps {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
+  min-width: 0;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
-  counter-reset: step;
-  font-size: 0.82rem;
-  color: var(--muted);
 }
 
-.story-step {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: color 300ms var(--ease-out);
-}
-
-.story-step::before {
-  counter-increment: step;
-  content: counter(step);
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
+.deck-step {
+  position: relative;
+  overflow: hidden;
+  min-height: 36px;
+  padding: 0 8px;
   border: 1px solid var(--line-strong);
-  font-size: 0.7rem;
-  font-weight: 700;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
   transition:
-    background-color 300ms var(--ease-out),
-    border-color 300ms var(--ease-out);
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out);
 }
 
-.story-step.is-current {
-  color: var(--ink);
+.deck-step:hover {
+  background: var(--paper-deep);
 }
 
-.story-step.is-current::before {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+.deck-step.is-current {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
 }
 
-.story-step.is-done::before {
-  background: var(--saffron-soft);
-  border-color: var(--saffron);
-  color: var(--ink);
+.deck-progress {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--saffron);
+  transform-origin: 0 50%;
+  animation: deck-progress linear infinite;
 }
 
-.story-replay {
-  min-height: 44px;
-  padding: 0 14px;
+.deck[data-paused="yes"] .deck-progress {
+  animation-play-state: paused;
+}
+
+@keyframes deck-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Pause: two bars; paused, a play triangle. */
+.deck-pause {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: var(--card);
-  color: var(--ink);
-  font-size: 0.82rem;
-  font-weight: 600;
 }
 
-.story-replay:hover {
+.deck-pause::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 10px;
+  height: 12px;
+  background:
+    linear-gradient(var(--ink), var(--ink)) left / 3px 100% no-repeat,
+    linear-gradient(var(--ink), var(--ink)) right / 3px 100% no-repeat;
+}
+
+.deck-pause.is-paused::before {
+  width: 0;
+  height: 0;
+  margin: auto auto auto 14px;
+  background: none;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent var(--ink);
+}
+
+.deck-pause:hover {
   background: var(--paper-deep);
 }
 
 @media (max-width: 960px) {
-  .story {
+  .deck {
     justify-self: stretch;
     width: 100%;
     max-width: 520px;
@@ -781,21 +1080,16 @@
 }
 
 @media (max-width: 480px) {
-  .story-stage {
-    padding: var(--space-4);
-    font-size: 0.88rem;
+  .deck-stack {
+    height: 348px;
   }
-}
 
-/* Reduced motion: the story's last frame, still, with nothing left to animate. */
-@media (prefers-reduced-motion: reduce) {
-  .story-stage,
-  .story-stage > *,
-  .story-doc {
-    transition: none;
+  .deck-card {
+    padding: var(--space-4);
   }
-  .story-scan {
-    display: none;
+
+  .deck-body {
+    font-size: 0.86rem;
   }
 }
 
@@ -947,6 +1241,8 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* The header wind runs the full width of the window, past the page's column. */
+  overflow-x: clip;
 }
 
 /* The demonstration band and the header stay on screen together, at every scroll position:
@@ -2871,4 +3167,377 @@
 .why p {
   margin-top: var(--space-1);
   font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Motion across the site. Entrances and transitions move and fade only (the compositor's work,
+   never layout, so nothing shifts); the header wind runs where the device can take it; and on the
+   landing page the sections tip up into place as they scroll in. The reduced-motion rule in
+   base.css stills all of it. */
+
+/* The wind behind a page's header (components/Breeze), fading out below. */
+.breeze {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 700ms var(--ease-out);
+  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent);
+  mask-image: linear-gradient(to bottom, #000 35%, transparent);
+}
+
+.breeze[data-live="yes"] {
+  opacity: 1;
+}
+
+.apply-intro {
+  position: relative;
+  isolation: isolate;
+}
+
+.apply-intro > .breeze {
+  top: calc(-1 * var(--space-6));
+  left: calc(50% - 50vw);
+  width: 100vw;
+  height: calc(100% + var(--space-6) + var(--space-7));
+}
+
+.console-main {
+  position: relative;
+  isolation: isolate;
+}
+
+.console-main > .breeze {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 280px;
+}
+
+/* The document desk's header: a payslip and an identity card, in depth, being read. */
+.papers {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .apply-intro {
+    padding-right: 300px;
+  }
+
+  .papers {
+    display: block;
+    position: absolute;
+    top: -4px;
+    right: 28px;
+    width: 236px;
+    height: 236px;
+    transform-style: preserve-3d;
+    transform: perspective(900px) rotateX(8deg) rotateY(-14deg);
+    animation: papers-float 9s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes papers-float {
+  from {
+    transform: perspective(900px) rotateX(9deg) rotateY(-20deg);
+  }
+  to {
+    transform: perspective(900px) rotateX(4deg) rotateY(-6deg) translateY(-6px);
+  }
+}
+
+.paper {
+  position: absolute;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--card);
+  box-shadow: var(--shadow-2);
+}
+
+.paper--id {
+  top: 6px;
+  left: 0;
+  width: 172px;
+  height: 108px;
+  padding: 22px 16px 16px 72px;
+  background: var(--saffron-soft);
+  transform: translateZ(-40px) rotate(-7deg);
+}
+
+.paper-photo {
+  position: absolute;
+  left: 16px;
+  top: 20px;
+  width: 42px;
+  height: 54px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink) 16%, var(--saffron-soft));
+}
+
+.paper--slip {
+  right: 0;
+  top: 40px;
+  width: 168px;
+  height: 196px;
+  overflow: hidden;
+  transform: translateZ(30px);
+}
+
+.paper-title {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.paper-line {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--paper-deep);
+}
+
+.paper--id .paper-line {
+  background: color-mix(in srgb, var(--ink) 10%, var(--saffron-soft));
+}
+
+.paper-total {
+  justify-self: end;
+  width: 56%;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 35%, var(--paper-deep));
+}
+
+.paper-scan {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 14px 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  opacity: 0;
+  animation: paper-scan 3.2s var(--ease-out) infinite;
+}
+
+@keyframes paper-scan {
+  0% {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(184px);
+    opacity: 1;
+  }
+  82%,
+  100% {
+    transform: translateY(184px);
+    opacity: 0;
+  }
+}
+
+/* A document being read: a light passes along the status line. */
+.reading {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.reading::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--saffron) 50%, transparent), transparent);
+  animation: reading 1.3s ease-in-out infinite;
+}
+
+@keyframes reading {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(240%);
+  }
+}
+
+/* Pages arrive in parts. */
+.apply > * {
+  animation: rise 480ms var(--ease-out) both;
+}
+
+.apply > :nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.apply > :nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.apply > :nth-child(n + 4) {
+  animation-delay: 210ms;
+}
+
+.console-main > :not(.breeze),
+.lead-view {
+  animation: rise 420ms var(--ease-out) both;
+}
+
+.rail-card {
+  animation: rise 480ms var(--ease-out) both;
+}
+
+.rail-card + .rail-card {
+  animation-delay: 90ms;
+}
+
+.suggestion {
+  animation: rise 420ms var(--ease-out) both;
+}
+
+.suggestion:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.suggestion:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.suggestion:nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+/* A change to confirm tips forward into place, like a slip handed across the counter. */
+.slip--confirm {
+  transform-origin: 50% 0;
+  animation: tip-in 480ms var(--ease-out) both;
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+    transform: perspective(700px) rotateX(-18deg) translateY(-8px);
+  }
+}
+
+/* A text arrives on the sample phone. */
+.texts li {
+  transform-origin: 0 0;
+  animation: drop-in 420ms var(--ease-out) both;
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+}
+
+/* A card's status changing, or the audit chain checked: a short pop. */
+.card-status--blocked,
+.card-status--cancelled,
+.audit-head .chip-ok {
+  animation: pop 460ms var(--ease-out);
+}
+
+@keyframes pop {
+  40% {
+    transform: scale(1.14);
+  }
+}
+
+.tile {
+  animation: rise 440ms var(--ease-out) both;
+}
+
+.tile:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.tile:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.tile:nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+.meter-fill {
+  transform-origin: 0 50%;
+  animation: meter-fill 900ms var(--ease-out) 200ms both;
+}
+
+@keyframes meter-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.events > li {
+  animation: rise 360ms var(--ease-out) both;
+}
+
+.events > li:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.events > li:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.events > li:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.events > li:nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+
+/* The landing page's cards lift under the pointer (translate, so it adds to any transform). */
+.persona-card,
+.role-card {
+  transition:
+    translate 220ms var(--ease-out),
+    box-shadow 220ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .persona-card:hover,
+  .role-card:hover {
+    translate: 0 -4px;
+    box-shadow: var(--shadow-2);
+  }
+}
+
+/* Below the landing page's fold, the sections tip up into place as they scroll into view: driven
+   by the scroll itself, so no script runs and nothing moves for anyone who doesn't scroll. Where
+   the browser can't do this, everything is simply in place. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .landing-section > h2,
+    .landing-section > .section-lede,
+    .persona-card,
+    .role-card,
+    .facts-grid > div {
+      animation: tip-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 85%;
+    }
+  }
+}
+
+@keyframes tip-up {
+  from {
+    transform: perspective(1000px) translateY(56px) rotateX(16deg);
+  }
 }

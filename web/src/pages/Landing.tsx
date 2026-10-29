@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 import { ApiError, api } from "../api/client";
 import type { Persona, Session } from "../api/types";
 import { Wordmark } from "../components/Brand";
-import { TurnStory } from "./landing/TurnStory";
+import { Showcase } from "./landing/Showcase";
 import { WindStage } from "./landing/WindStage";
 
 const ROLES = [
@@ -75,7 +75,7 @@ export function Landing() {
                 <a href={CODE}>The code, the tests and every evaluation are on GitHub</a>
               </p>
             </div>
-            <TurnStory />
+            <Showcase />
           </div>
         </section>
 

@@ -140,7 +140,7 @@ Taken on the development stack with the real models and the sample data.
 | | |
 |---|---|
 | ![The landing page](docs/screenshots/landing.png) | ![The landing page on a phone](docs/screenshots/landing-phone.png) |
-| The landing page: one turn of the assistant, with the monsoon wind behind it (WebGL, on capable devices) | The same, on a phone |
+| The landing page: a deck of cards, each a part of Kaskazi at work, with the monsoon wind behind it (WebGL, on capable devices) | The same, on a phone |
 | ![The document desk's result](docs/screenshots/desk.png) | ![A reviewer checking a payslip](docs/screenshots/review.png) |
 | The document desk, after reading a payslip and an ID card | A reviewer's view, with the evidence for each field highlighted |
 | ![Monitoring](docs/screenshots/monitoring.png) | ![Evaluations](docs/screenshots/evaluations.png) |

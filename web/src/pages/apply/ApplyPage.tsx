@@ -5,8 +5,31 @@ import { Link, Navigate } from "react-router";
 import { ApiError, api } from "../../api/client";
 import type { DeskDocument, DocKind, LoanApplication, LoanQuote, SampleDocument, Session } from "../../api/types";
 import { Wordmark } from "../../components/Brand";
+import { Breeze } from "../../components/Breeze";
 import { money } from "../../lib/format";
 import { DocChecks, DocFields, DocStatus } from "./DocumentParts";
+
+/** A payslip and an identity card, in depth, with the reading line passing over them: decoration. */
+function Papers() {
+  return (
+    <div className="papers" aria-hidden="true">
+      <div className="paper paper--id">
+        <span className="paper-photo" />
+        {[64, 82, 46].map((w, i) => (
+          <span key={i} className="paper-line" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+      <div className="paper paper--slip">
+        <span className="paper-title">Payslip</span>
+        {[78, 52, 88, 60, 72, 40].map((w, i) => (
+          <span key={i} className="paper-line" style={{ width: `${w}%` }} />
+        ))}
+        <span className="paper-total" />
+        <span className="paper-scan" />
+      </div>
+    </div>
+  );
+}
 
 const KIND_TITLE: Record<DocKind, string> = { payslip: "Your latest payslip", id: "Your identity card", statement: "A bank statement" };
 const TERMS = [6, 12, 18, 24, 36, 48, 60];
@@ -42,6 +65,8 @@ function Apply({ firstName }: { firstName: string }) {
       </div>
       <main id="main" className="apply">
         <div className="apply-intro">
+          <Breeze />
+          <Papers />
           <p className="eyebrow">Kaskazi Personal Loan</p>
           <h1>Apply with your documents</h1>
           <p className="lede">

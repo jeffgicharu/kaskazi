@@ -3,8 +3,9 @@
 //
 // Plain WebGL 1, one draw call for the streaks and one for their heads, no library. Each particle
 // is stateless: its position is a function of its seed and the time, worked out in the vertex
-// shader, so the CPU only updates a few uniforms a frame. This module is loaded on its own, after
-// the page has painted, and only where the device can afford it (see WindStage).
+// shader, so the CPU only updates a few uniforms a frame. This module is loaded on its own, once
+// the page has loaded, and only where the device can afford it (see useMonsoon). It blows behind
+// the landing page's headline and, more sparsely, behind the headers of the other pages.
 
 const VERTEX = `
 attribute vec4 a_seed;   // x: phase along the flow, y: across, z: speed, w: depth (0 far, 1 near)
@@ -14,7 +15,7 @@ uniform float u_aspect;
 uniform vec2 u_pointer;  // clip space
 uniform float u_push;    // 0..1, eased in while the pointer moves over the stage
 uniform vec2 u_tilt;     // -1..1, the pointer's position, for parallax
-uniform vec4 u_card;     // the story card, in clip space: centre, half size (zero if none)
+uniform vec4 u_card;     // a card the wind parts around, in clip space: centre, half size (zero if none)
 uniform float u_dpr;
 uniform mediump float u_points; // shared with the fragment shader, so the same precision
 uniform vec2 u_resolution;
@@ -128,7 +129,7 @@ function compile(gl: WebGLRenderingContext, type: number, source: string): WebGL
 export function startMonsoon(
   canvas: HTMLCanvasElement,
   particles: number,
-  obstacle: () => DOMRect | null,
+  obstacle: (() => DOMRect | null) | null,
   onFirstFrame: () => void,
   onTooSlow: () => void,
 ): Monsoon | null {
@@ -204,8 +205,11 @@ export function startMonsoon(
     gain: u("u_gain"),
   };
 
-  const style = getComputedStyle(document.documentElement);
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  // The colours of wherever the canvas sits (the staff console is dark whatever the visitor's
+  // setting), and a little more strength on a dark ground.
+  const style = getComputedStyle(canvas);
+  const paper = rgb(style.getPropertyValue("--paper"), [0.95, 0.93, 0.89]);
+  const dark = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2] < 0.4;
   gl.uniform3fv(u("u_ink"), rgb(style.getPropertyValue("--ink"), [0.1, 0.14, 0.25]));
   gl.uniform3fv(u("u_accent"), rgb(style.getPropertyValue("--accent"), [0.68, 0.29, 0.14]));
   gl.uniform3fv(u("u_saffron"), rgb(style.getPropertyValue("--saffron"), [0.88, 0.67, 0.27]));
@@ -224,7 +228,7 @@ export function startMonsoon(
     canvas.height = height;
     gl.viewport(0, 0, width, height);
     gl.uniform2f(at.resolution, width, height);
-    const card = obstacle();
+    const card = obstacle?.() ?? null;
     if (card && box.width > 0 && box.height > 0) {
       const cx = ((card.left + card.width / 2 - box.left) / box.width) * 2 - 1;
       const cy = -(((card.top + card.height / 2 - box.top) / box.height) * 2 - 1);
@@ -238,8 +242,8 @@ export function startMonsoon(
   // The pointer, eased so the wind parts and closes smoothly.
   const target = { x: 0, y: 0, push: 0 };
   const now = { x: 0, y: 0, push: 0 };
-  // The stage sits under the page's text, so the pointer is read from the section that holds both.
-  const host: HTMLElement = canvas.closest("section") ?? canvas.parentElement ?? canvas;
+  // The wind sits under the page's text, so the pointer is read from the element that holds both.
+  const host: HTMLElement = canvas.parentElement?.closest("section") ?? canvas.parentElement ?? canvas;
   const onMove = (e: PointerEvent) => {
     const box = canvas.getBoundingClientRect();
     target.x = ((e.clientX - box.left) / box.width) * 2 - 1;
