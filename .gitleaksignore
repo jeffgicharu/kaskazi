@@ -1,0 +1,3 @@
+# Findings reviewed and judged not to be secrets. One line per finding: commit:file:rule:line.
+# A metric's name ("latency_ms_p50") in the console's list of metrics, read as a generic API key.
+642d687fda56dd5784382dfd93089b0203c3984a:web/src/pages/console/LeadViews.tsx:generic-api-key:299

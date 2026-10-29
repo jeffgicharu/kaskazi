@@ -287,17 +287,17 @@ export function MonitoringView() {
 
 // --- Evaluations -----------------------------------------------------------------------------------
 
-const METRICS: { key: string; label: string; format: (v: number | null) => string; hint: string }[] = [
-  { key: "key_fact", label: "Key fact stated", format: percent, hint: "answers giving the fact the question turns on" },
-  { key: "fact_coverage", label: "All criteria met", format: percent, hint: "secondary details included" },
-  { key: "outcome_ok", label: "Answered", format: percent, hint: "document and record questions" },
-  { key: "grounded", label: "Cites a passage", format: percent, hint: "answers from the documents" },
-  { key: "unanswerable_ok", label: "No invention", format: percent, hint: "when the documents can't answer" },
-  { key: "behaviour_ok", label: "Refusals and handovers", format: percent, hint: "off-topic, injection, fraud, a person" },
-  { key: "card_offered", label: "Waits to confirm", format: percent, hint: "every change" },
-  { key: "contradicted", label: "Contradictions", format: (v) => (v == null ? "–" : String(v)), hint: "criteria an answer got wrong" },
-  { key: "latency_ms_p50", label: "Reply p50", format: seconds, hint: "server time" },
-  { key: "cost_usd_per_case", label: "Cost per question", format: (v) => (v == null ? "–" : usd(v, 4)), hint: "model calls" },
+const METRICS: { metric: string; label: string; format: (v: number | null) => string; hint: string }[] = [
+  { metric: "key_fact", label: "Key fact stated", format: percent, hint: "answers giving the fact the question turns on" },
+  { metric: "fact_coverage", label: "All criteria met", format: percent, hint: "secondary details included" },
+  { metric: "outcome_ok", label: "Answered", format: percent, hint: "document and record questions" },
+  { metric: "grounded", label: "Cites a passage", format: percent, hint: "answers from the documents" },
+  { metric: "unanswerable_ok", label: "No invention", format: percent, hint: "when the documents can't answer" },
+  { metric: "behaviour_ok", label: "Refusals and handovers", format: percent, hint: "off-topic, injection, fraud, a person" },
+  { metric: "card_offered", label: "Waits to confirm", format: percent, hint: "every change" },
+  { metric: "contradicted", label: "Contradictions", format: (v) => (v == null ? "–" : String(v)), hint: "criteria an answer got wrong" },
+  { metric: "latency_ms_p50", label: "Reply p50", format: seconds, hint: "server time" },
+  { metric: "cost_usd_per_case", label: "Cost per question", format: (v) => (v == null ? "–" : usd(v, 4)), hint: "model calls" },
 ];
 
 function Misses({ report }: { report: AnswersReport }) {
@@ -469,9 +469,9 @@ export function EvaluationsView() {
             ) : null}
             <dl className="metric-grid">
               {METRICS.map((m) => (
-                <div key={m.key} className="metric">
+                <div key={m.metric} className="metric">
                   <dt>{m.label}</dt>
-                  <dd className="tabular">{m.format(r.metrics[m.key] ?? null)}</dd>
+                  <dd className="tabular">{m.format(r.metrics[m.metric] ?? null)}</dd>
                   <dd className="muted small">{m.hint}</dd>
                 </div>
               ))}
