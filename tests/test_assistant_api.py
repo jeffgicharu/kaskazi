@@ -351,3 +351,118 @@ async def test_the_release_journeys_pass(stack: Stack, monkeypatch: pytest.Monke
         for journey in JOURNEYS:
             await journey(api, api, "dev")
     Mode.stand_in = False
+
+
+# --- The document desk ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module", autouse=True)
+def desk_samples(tmp_path_factory: pytest.TempPathFactory) -> Any:
+    """Every test here, the release journeys included, reads samples made for the run."""
+    from kaskazi.documents import desk
+    from kaskazi.documents.samples import generate
+
+    out = tmp_path_factory.mktemp("samples")
+    generate(out)
+    before = desk.SAMPLES
+    desk.SAMPLES = out / "visitor"
+    yield out
+    desk.SAMPLES = before
+
+
+async def test_a_loan_application_from_documents_to_a_persons_decision(
+    stack: Stack, desk_samples: Any
+) -> None:
+    client = stack.client
+    conversation = await start(client)
+    r = await client.post(
+        "/api/applications", json={"amount": 200_000, "term_months": 24}, headers=WRITE
+    )
+    assert r.status_code == 200, r.text
+    application = r.json()
+    assert application["status"] == "documents_requested"
+    assert application["still_needed"] == ["payslip", "id"]
+    app_id = application["id"]
+    samples = (await client.get("/api/applications/samples")).json()
+    assert {"amina-payslip", "amina-id", "amina-payslip-planted"} <= {s["key"] for s in samples}
+
+    async def add(key: str) -> dict[str, Any]:
+        r = await client.post(
+            f"/api/applications/{app_id}/documents/sample", json={"key": key}, headers=WRITE
+        )
+        assert r.status_code == 200, r.text
+        return dict(r.json())
+
+    # A planted instruction, hidden in white text, sends the payslip to a person.
+    planted = await add("amina-payslip-planted")
+    assert planted["status"] == "needs_review"
+    assert any(c["name"] == "no_hidden_text" and c["ok"] is False for c in planted["checks"])
+    # The clean payslip is read through masked text and replaces it.
+    slip = await add("amina-payslip")
+    assert slip["status"] == "verified", slip["review_reasons"]
+    net = next(f for f in slip["fields"] if f["name"] == "net_pay")
+    assert net["value"] == "68940.13"
+    pin = next(f for f in slip["fields"] if f["name"] == "employee_kra_pin")
+    assert pin["value"] == "A•••••••••K"  # shown partly hidden, as everywhere else
+    # The stand-in can't read images, so the ID card waits for a reviewer.
+    card = await add("amina-id")
+    assert card["status"] == "needs_review"
+
+    r = await client.post(f"/api/applications/{app_id}/submit", headers=WRITE)
+    assert r.status_code == 200, r.text
+    submitted = r.json()
+    assert submitted["status"] == "under_review"
+    assert [d["kind"] for d in submitted["documents"]] == ["payslip", "id"]
+    assessment = submitted["assessment"]
+    assert assessment["affordability"]["requested_fits"] is True
+    passed = {c["name"]: c["ok"] for c in assessment["checks"]}
+    assert passed["name_on_payslip"] and passed["net_pay_credited"]
+
+    # A customer can't decide their own loan.
+    r = await client.post(
+        f"/api/console/applications/{app_id}/decide", json={"decision": "approve"}, headers=WRITE
+    )
+    assert r.status_code == 401
+
+    r = await client.post("/api/console/enter", json={"role": "reviewer"}, headers=WRITE)
+    assert r.status_code == 200, r.text
+    queue = (await client.get("/api/console/reviews")).json()["applications"]
+    assert [a["id"] for a in queue] == [app_id]
+    r = await client.post(
+        f"/api/console/applications/{app_id}/decide", json={"decision": "approve"}, headers=WRITE
+    )
+    assert r.status_code == 422 and "Identity card" in r.json()["detail"]  # documents first
+    r = await client.post(
+        f"/api/console/documents/{card['id']}/review",
+        json={
+            "decision": "corrected",
+            "corrections": {
+                "full_name": "Amina Wanjiru Kariuki",
+                "id_number": "27450913",
+                "date_of_birth": "1988-03-14",
+                "date_of_issue": "2007-05-21",
+                "sex": "F",
+            },
+        },
+        headers=WRITE,
+    )
+    assert r.status_code == 200 and r.json()["status"] == "corrected", r.text
+    r = await client.post(
+        f"/api/console/applications/{app_id}/decide", json={"decision": "approve"}, headers=WRITE
+    )
+    assert r.status_code == 200, r.text
+    decided = r.json()
+    assert decided["status"] == "approved"
+    paid = decided["decision"]["paid_out"]
+    assert (
+        paid["amount"] == 200_000 and paid["amount_received"] < 200_000
+    )  # less the fee and insurance
+
+    # The money arrived, and the customer's pretend phone says so.
+    accounts = (await client.get("/api/quick/overview")).json()["accounts"]
+    assert any(float(a["balance"]) > 41_230 + paid["amount_received"] - 1 for a in accounts)
+    thread = (await client.get("/api/conversation", params={"id": conversation})).json()
+    assert any("Personal Loan of KES 200,000 is approved" in str(m) for m in thread["messages"])
+    r = await client.post("/api/console/enter", json={"role": "ai_lead"}, headers=WRITE)
+    verify = (await client.get("/api/console/audit/verify")).json()
+    assert verify["intact"]

@@ -24,6 +24,7 @@ PARTS: dict[str, tuple[str, ...]] = {
     "retrieval": ("kaskazi/retrieval",),
     "controls": ("kaskazi/controls",),
     "assistant": ("kaskazi/assistant",),  # the turn itself and the bank's own templates
+    "documents": ("kaskazi/documents",),  # reading documents, the statutory rates, the checks
     "corpus": ("corpus/documents", "corpus/embeddings"),
     "golden_set": ("evals/golden", "evals/answers.py"),
 }

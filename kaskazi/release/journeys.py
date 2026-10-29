@@ -192,6 +192,28 @@ async def the_audit_chain_is_intact(
     return f"the check copy's audit chain is intact over {verify['events']} events"
 
 
+async def a_payslip_is_read_and_checked(
+    api: httpx.AsyncClient, gateway: httpx.AsyncClient, release: str
+) -> str:
+    """The document desk end to end: a sample payslip read through masked text, every check."""
+    await CheckCopy.open(api, release)
+    r = await api.post(
+        "/api/applications", json={"amount": 200000, "term_months": 24}, headers=WRITE
+    )
+    _expect(r.status_code == 200, f"no application: {r.status_code} {r.text[:200]}")
+    app_id = r.json()["id"]
+    r = await api.post(
+        f"/api/applications/{app_id}/documents/sample", json={"key": "amina-payslip"}, headers=WRITE
+    )
+    _expect(r.status_code == 200, f"the payslip wasn't taken: {r.status_code} {r.text[:200]}")
+    doc = r.json()
+    _expect(doc["status"] == "verified", f"the payslip is {doc['status']}: {doc['review_reasons']}")
+    net = next((f["value"] for f in doc["fields"] if f["name"] == "net_pay"), None)
+    _expect(net == "68940.13", f"net pay read as {net}")
+    passed = sum(1 for c in doc["checks"] if c["ok"])
+    return f"a sample payslip was read through masked text and passed {passed} checks"
+
+
 async def the_stream_opens(api: httpx.AsyncClient, gateway: httpx.AsyncClient, release: str) -> str:
     # Without a conversation the stream sends its retry line and ends, signed in or not.
     r = await api.get("/api/stream")
@@ -206,6 +228,7 @@ JOURNEYS: list[Journey] = [
     a_card_block_waits_and_runs_once,
     a_handover_reaches_the_agent,
     the_fallback_provider_answers,
+    a_payslip_is_read_and_checked,
     the_audit_chain_is_intact,
     the_stream_opens,
 ]

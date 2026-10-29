@@ -147,9 +147,11 @@ def create_app(
     async def healthz() -> dict[str, Any]:
         return {"ok": True, "release": release_id()}
 
-    from kaskazi.api import check, console, customer
+    from kaskazi.api import applications, check, console, customer
 
     app.include_router(customer.router)
+    app.include_router(applications.router)
+    app.include_router(applications.uploads)
     app.include_router(console.router)
     app.include_router(check.router)
     return app

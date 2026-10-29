@@ -70,6 +70,12 @@ class EligibilityRequest(LoanRequest):
     other_monthly_repayments: int | None = Field(default=None, ge=0, le=10_000_000)
 
 
+class Disbursal(BaseModel):
+    amount: int = Field(ge=1)
+    term_months: int = Field(ge=1, le=120)
+    account_id: uuid.UUID
+
+
 class OwnTransfer(BaseModel):
     from_account_id: uuid.UUID
     to_account_id: uuid.UUID
@@ -160,6 +166,19 @@ def create_app(pool: asyncpg.Pool) -> FastAPI:
             (b["name"] for b in rules.bank()["branches"] if b["code"] == row["branch_code"]), None
         )
         return {**_plain(dict(row)), "home_branch": branch}
+
+    @app.get("/v1/customer/identity")
+    async def identity(ctx: Ctx) -> dict[str, Any]:
+        """The name and ID number on record, for checking documents against. No tool reads this:
+        it is for the document desk, never for a model."""
+        async with tx(ctx) as conn:
+            row = await conn.fetchrow(
+                "SELECT full_name, national_id FROM corebank.customers WHERE id = $1",
+                ctx.customer_id,
+            )
+        if row is None:
+            raise Problem(404, "not_found", "No such customer.")
+        return dict(row)
 
     @app.get("/v1/accounts")
     async def accounts(ctx: Ctx) -> list[dict[str, Any]]:
@@ -290,6 +309,53 @@ def create_app(pool: asyncpg.Pool) -> FastAPI:
                 ctx.customer_id,
             )
         return [_plain(dict(r)) for r in rows]
+
+    @app.post("/v1/loans/personal/disburse")
+    async def disburse(ctx: Ctx, body: Disbursal) -> dict[str, Any]:
+        """Pays out a Personal Loan a person has approved: the loan opens and the amount received
+        (the loan less its fee and insurance) is paid into the customer's account."""
+        try:
+            q = rules.personal_loan_quote(body.amount, body.term_months)
+        except rules.QuoteError as exc:
+            raise Problem(422, "outside_limits", str(exc)) from exc
+        async with tx(ctx) as conn:
+            if (done := await remembered(conn, ctx)) is not None:
+                return done
+            account = await _own_account(conn, ctx, body.account_id)
+            loan_id = uuid.uuid4()
+            await conn.execute(
+                """INSERT INTO corebank.loans (id, sandbox_id, customer_id, product, principal, outstanding,
+                       rate, term_months, instalment, next_due, status)
+                   VALUES ($1, $2, $3, 'Kaskazi Personal Loan', $4, $4, $5, $6, $7,
+                           (date_trunc('month', now()) + interval '1 month 24 days')::date, 'active')""",
+                loan_id,
+                ctx.sandbox_id,
+                ctx.customer_id,
+                Decimal(q.amount),
+                Decimal(str(q.interest_rate)),
+                q.term_months,
+                Decimal(q.monthly_instalment),
+            )
+            ref = await _post(
+                conn,
+                ctx,
+                account["id"],
+                Decimal(q.amount_received),
+                "Kaskazi Personal Loan, paid out",
+                "branch",
+            )
+            return await remember(
+                conn,
+                ctx,
+                {
+                    "loan_id": str(loan_id),
+                    "reference": ref,
+                    "amount": q.amount,
+                    "amount_received": q.amount_received,
+                    "monthly_instalment": q.monthly_instalment,
+                    "account": account["product"],
+                },
+            )
 
     @app.post("/v1/loans/personal/quote")
     async def quote(body: LoanRequest) -> dict[str, Any]:

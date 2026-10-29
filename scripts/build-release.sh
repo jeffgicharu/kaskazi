@@ -7,7 +7,7 @@
 #   python/   python-build-standalone CPython 3.13, the baseline x86-64 build (the server's CPU
 #             has SSE3 at most), with the locked dependencies installed for the server's glibc
 #   app/      the kaskazi package, the bank's documents and their vectors, the prompts, the
-#             golden set and the evaluation reports
+#             golden set, the evaluation reports and the document desk's sample documents
 #   web/      the built React app (index.html and fingerprinted assets/)
 #   pages/    the unavailable page
 #   REVISION  the sha
@@ -54,6 +54,10 @@ cp -r kaskazi prompts "$out/app/"
 mkdir -p "$out/app/corpus" "$out/app/evals"
 cp -r corpus/documents corpus/embeddings "$out/app/corpus/"
 cp -r evals/golden "$out/app/evals/"  # the release check asks ten of its questions live
+# The sample documents visitors give the document desk; made here, never on the server (fpdf2 is
+# a development dependency). The evaluation set stays behind.
+uv run --frozen python -m kaskazi.documents.samples --out "$out/app/samples" >/dev/null
+rm -rf "$out/app/samples/evaluation"
 [[ -d evals/reports ]] && cp -r evals/reports "$out/app/evals/"
 echo "../../../../app" > "$site/kaskazi-app.pth"
 # The AI fingerprint of the source this release is built from; CI's gate has found a passing

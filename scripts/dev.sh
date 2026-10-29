@@ -17,6 +17,8 @@ fi
 # within a few dozen questions. Real spending locally is still capped, at a few dollars a day.
 export KASKAZI_CAP_ADDRESS_DAY_USD="${KASKAZI_CAP_ADDRESS_DAY_USD:-3}"
 export KASKAZI_CAP_DAY_USD="${KASKAZI_CAP_DAY_USD:-3}"
+# The document desk's sample documents, made once.
+[[ -f samples/visitor/index.json ]] || .venv/bin/python -m kaskazi.documents.samples --out samples
 .venv/bin/python -m kaskazi.gateway serve &
 gateway=$!
 

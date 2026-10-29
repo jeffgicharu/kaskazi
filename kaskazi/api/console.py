@@ -549,3 +549,108 @@ async def prompts(s: Lead, svc: Svc) -> dict[str, Any]:
             }
         )
     return {"prompts": [{"id": k, "versions": v} for k, v in sorted(grouped.items())]}
+
+
+# --- Document review and loan decisions ----------------------------------------------------------
+
+Reviewer = Annotated[Staff, needs("reviewer", "ai_lead")]
+
+
+def _desk_failure(error: Exception) -> HTTPException:
+    from kaskazi.documents.desk import DeskError
+
+    assert isinstance(error, DeskError)
+    return HTTPException(status_code=error.status, detail=str(error))
+
+
+@router.get("/reviews")
+async def reviews(s: Reviewer, svc: Svc) -> dict[str, Any]:
+    from kaskazi.documents import desk
+
+    return {"applications": await desk.queue(svc.pool, s.sandbox_id)}
+
+
+@router.get("/documents/{doc_id}/file")
+async def review_file(doc_id: uuid.UUID, s: Reviewer, svc: Svc) -> Response:
+    from kaskazi.documents import desk
+
+    try:
+        media_type, data, _ = await desk.file(svc.pool, s.sandbox_id, doc_id)
+    except desk.DeskError as error:
+        raise _desk_failure(error) from error
+    return Response(
+        data,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": "inline",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.get("/documents/{doc_id}/text")
+async def review_text(doc_id: uuid.UUID, s: Reviewer, svc: Svc) -> dict[str, Any]:
+    """A PDF's text as the desk read it, and the text hidden on its pages, for the reviewer to
+    see each field's evidence in place."""
+    from kaskazi.documents import desk
+    from kaskazi.documents.text import read_pdf
+
+    try:
+        media_type, data, _ = await desk.file(svc.pool, s.sandbox_id, doc_id)
+    except desk.DeskError as error:
+        raise _desk_failure(error) from error
+    if media_type != "application/pdf":
+        return {"visible": None, "hidden": []}
+    text = read_pdf(data)
+    return {"visible": text.visible, "hidden": text.hidden}
+
+
+class DocumentReview(BaseModel):
+    decision: Literal["approved", "corrected", "rejected"]
+    corrections: dict[str, str] = Field(default_factory=dict, max_length=20)
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/documents/{doc_id}/review", dependencies=[Write])
+async def review_document(
+    doc_id: uuid.UUID, body: DocumentReview, s: Reviewer, svc: Svc
+) -> dict[str, Any]:
+    from kaskazi.documents import desk
+
+    try:
+        return await desk.review_document(
+            svc.pool,
+            s.sandbox_id,
+            doc_id,
+            decision=body.decision,
+            corrections=body.corrections,
+            note=body.note,
+        )
+    except desk.DeskError as error:
+        raise _desk_failure(error) from error
+
+
+class LoanDecision(BaseModel):
+    decision: Literal["approve", "decline", "more_documents"]
+    reason: str = Field(default="", max_length=500)
+
+
+@router.post("/applications/{application_id}/decide", dependencies=[Write])
+async def decide_application(
+    application_id: uuid.UUID, body: LoanDecision, s: Reviewer, svc: Svc
+) -> dict[str, Any]:
+    from kaskazi.documents import desk
+
+    try:
+        return await desk.decide(
+            svc.pool,
+            svc.bank,
+            s.sandbox_id,
+            application_id,
+            decision=body.decision,
+            reason=body.reason,
+        )
+    except desk.DeskError as error:
+        raise _desk_failure(error) from error
