@@ -41,7 +41,12 @@ def load_questions() -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for f in files:
         rows += [json.loads(line) for line in f.read_text().splitlines() if line.strip()]
-    return [r for r in rows if r.get("kind") == "answerable"]
+    # Staff questions search the staff documents too.
+    return [
+        {**r, "audience": "staff"} if r.get("kind") == "staff" else r
+        for r in rows
+        if r.get("kind") in ("answerable", "staff")
+    ]
 
 
 def read_cache() -> dict[str, list[float]]:

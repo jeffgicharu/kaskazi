@@ -72,8 +72,10 @@ JUDGE_SCHEMA: dict[str, Any] = {
 
 
 def load_cases(only: set[str] | None = None) -> list[dict[str, Any]]:
+    """The cases for the customer assistant. Staff questions (written from staff-only documents,
+    which the customer assistant can't see) are for the retrieval measurement only."""
     cases = [json.loads(line) for line in CASES.read_text().splitlines() if line.strip()]
-    return [c for c in cases if only is None or c["id"] in only]
+    return [c for c in cases if c["kind"] != "staff" and (only is None or c["id"] in only)]
 
 
 async def ask(api: str, case: dict[str, Any]) -> dict[str, Any]:
@@ -101,10 +103,11 @@ async def ask(api: str, case: dict[str, Any]) -> dict[str, Any]:
 
 
 async def timed_out(db: asyncpg.Pool, conversation: str) -> bool:
-    """Whether a provider timed out during this conversation's turns."""
+    """Whether a provider timed out, or was skipped by its open breaker, during this
+    conversation's turns."""
     found = await db.fetchval(
         "SELECT 1 FROM gateway.calls c JOIN app.conversations v ON v.sandbox_id = c.sandbox_id "
-        "WHERE v.id = $1 AND c.error_kind = 'timeout' LIMIT 1",
+        "WHERE v.id = $1 AND c.error_kind IN ('timeout', 'circuit_open') LIMIT 1",
         uuid.UUID(conversation),
     )
     return found is not None
@@ -199,8 +202,9 @@ async def run_case(
         if turn["outcome"] == "unavailable" or await timed_out(db, turn["conversation_id"]):
             # A provider timed out while answering: at this runner's end that is usually the
             # network, and it says nothing about the answers. Ask once more, and count it.
-            # (Provider reliability is watched on the console's monitoring view.)
-            await asyncio.sleep(20)
+            # (Provider reliability is watched on the console's monitoring view.) The wait
+            # outlasts the breaker's minute, so the second ask reaches the primary again.
+            await asyncio.sleep(70)
             turn = await ask(api, case)
             asked_again = True
     except httpx.HTTPError as error:

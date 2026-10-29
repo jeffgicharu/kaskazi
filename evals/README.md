@@ -6,9 +6,9 @@ that chose it. The staff console shows them all under **AI lead → Evaluations*
 
 | What | Set | Command | Cost a run |
 |---|---|---|---|
-| The whole assistant, end to end | `golden/questions.jsonl`, 135 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
+| The whole assistant, end to end | `golden/questions.jsonl`, 127 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
 | The router | `router_cases.jsonl`, 49 messages | `python -m evals.router` | about $0.06 |
-| Retrieval | the golden set's 98 document questions | `python -m evals.retrieval` | free (cached vectors) |
+| Retrieval | the golden set's 98 document questions, 8 of them staff questions | `python -m evals.retrieval` | free (cached vectors) |
 | The judge | `judge/calibration.jsonl`, 56 hand-labelled criteria | `python -m evals.judge_calibration measure` | about $0.06 |
 | The document desk | 34 generated documents | `python -m evals.documents` | about $0.02 |
 
@@ -17,9 +17,9 @@ Run them with `uv run` from the repository root, against the local stack with th
 
 ## The golden set
 
-135 cases, each asked as one of the three sample customers in a fresh conversation:
+127 cases, each asked as one of the three sample customers in a fresh conversation:
 
-- **98 answerable questions** about the bank's products, fees and rules, written in the way
+- **90 answerable questions** about the bank's products, fees and rules, written in the way
   customers write: short, misspelt, in English, Swahili and a mix of the two. Each has the
   document it was written from and the facts a good answer states. The first fact is the one
   the question turns on; the rest are details a thorough answer would add.
@@ -31,6 +31,13 @@ Run them with `uv run` from the repository root, against the local stack with th
   markup, fraud, bereavement, money troubles, asking for a person, a PIN or card number typed
   into the chat, and a greeting.
 - **3 follow-ups** that only make sense with the question before them.
+
+Eight more questions were written from the four staff-only documents (credit decisions,
+document checks, complaint handling, handover). The customer assistant can't see those
+documents, rightly, so they aren't asked of it; the retrieval measurement uses them, searching
+staff documents as a staff tool would. They were in the first runs until a reading of the
+judge's misses showed a member of staff's question ("a loan application from my cousin is in
+my queue: may I review it?") being graded as the customer assistant's failure.
 
 Every figure in an expected fact was checked against the document the question came from
 (one exception: a salary the customer states in the question).
@@ -122,9 +129,13 @@ doesn't fail a good release, while the regression rules catch a real step down. 
 is gated only against regression: the golden set lists every relevant detail, and a concise,
 correct answer leaves some out.
 
-A case where no model provider could be reached is asked again after 20 seconds; if it fails
-again it counts as an error, and an error fails the gate. That is a fact about the network, not
-about the answers, and the run should be repeated.
+A case during which a provider timed out, or was skipped because its breaker was open, is asked
+again after 70 seconds (longer than the breaker's minute), and the report counts these. From
+the laptop the runs are made on, the network drops for a few seconds every few minutes: both
+providers time out at the same moment, the breaker opens, and for a minute the fallback answers.
+That is the product working, and it is watched on the console's monitoring view; it is not what
+this run measures. A case where no provider could be reached at all, twice, is an error, and an
+error fails the gate.
 
 ## Why the run happens before release, not in CI
 
