@@ -43,7 +43,7 @@ export function Landing() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to the main content</a>
-      <header className="site-header">
+      <header className="site-header site-header--over">
         <Wordmark />
         {signedIn ? (
           <button type="button" className="btn btn-quiet" onClick={() => navigate("/chat")}>Back to the app</button>

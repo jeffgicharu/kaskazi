@@ -13,6 +13,24 @@
   margin: 0 auto;
 }
 
+/* On the landing page the header lies over the hero, with no ground of its own, so the wind blows
+   behind it too. Taken out of the flow, it also can't move the hero when its button appears. */
+.site-header--over {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.site-header--over .btn-quiet {
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+}
+
+.site-header--over .btn-quiet:hover:not(:disabled) {
+  background: var(--paper-deep);
+}
+
 .wordmark {
   display: inline-flex;
   align-items: center;
@@ -129,11 +147,13 @@
 }
 
 .hero-inner {
+  /* The header's height over the hero: a 44 px button and its padding. */
+  --header: 68px;
   position: relative;
   z-index: 1;
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--space-7) var(--space-4) calc(var(--space-8) + var(--space-5));
+  padding: calc(var(--header) + var(--space-7)) var(--space-4) calc(var(--space-8) + var(--space-5));
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
   gap: var(--space-7);
@@ -190,7 +210,7 @@
   .hero-inner {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
-    padding-top: var(--space-6);
+    padding-top: calc(var(--header) + var(--space-6));
     padding-bottom: var(--space-8);
   }
 }
