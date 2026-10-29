@@ -136,6 +136,36 @@ async def test_a_balance_question_uses_the_tools(stack: Stack) -> None:
     assert any(c["type"] == "accounts" for c in result["reply"]["cards"])
 
 
+async def test_reads_asked_for_together_come_back_together_in_order(stack: Stack) -> None:
+    convo = await start(stack.client)
+    calls = [
+        ToolCallPart(call_id="toolu_a", name="get_accounts", arguments={}),
+        ToolCallPart(call_id="toolu_c", name="get_cards", arguments={}),
+    ]
+
+    def two_reads(request: GenerateRequest, settings: CallSettings) -> ProviderReply:
+        reply = _reply(request, settings)
+        if request.route == "assistant.router":
+            return reply
+        if not any(isinstance(p, ToolResultPart) for p in request.messages[-1].parts):
+            blocks = [
+                {"type": "tool_use", "id": c.call_id, "name": c.name, "input": {}} for c in calls
+            ]
+            turn = ProviderTurn(provider="anthropic", model="fake", blocks=blocks)
+            return ProviderReply(StopReason.TOOL_USE, [], calls, None, turn, reply.usage, "fake")
+        done = reply.texts[0].__class__(text="Here are your accounts and cards.")
+        return ProviderReply(StopReason.END, [done], [], None, None, reply.usage, "fake")
+
+    stack.primary.script = two_reads  # type: ignore[assignment]
+    result = await say(stack.client, convo, "show me my accounts and my cards")
+    assert result["outcome"] == "answered"
+    answers = [req for req, _ in stack.primary.calls if req.route == "assistant.answer"]
+    # One round of tools, then the answer, which saw both results in the order asked.
+    results = [p for p in answers[-1].messages[-1].parts if isinstance(p, ToolResultPart)]
+    assert [p.call_id for p in results] == ["toolu_a", "toolu_c"]
+    stack.primary.script = _reply  # type: ignore[assignment]
+
+
 async def test_personal_data_never_reaches_a_model_and_comes_back_hidden(stack: Stack) -> None:
     convo = await start(stack.client)
     await say(

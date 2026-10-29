@@ -51,7 +51,7 @@ from kaskazi.llm.contract import (
 from kaskazi.prompts.registry import prompt
 from kaskazi.retrieval.store import Hit, search
 from kaskazi.tools.executor import Executor
-from kaskazi.tools.registry import BY_NAME, tools_for, toolset_hash
+from kaskazi.tools.registry import BY_NAME, ToolOutcome, tools_for, toolset_hash
 
 MAX_TOOL_ROUNDS = 4
 CANARY = re.compile(r"(?i)kz[\W_]*canary[\W_]*6c41e8")
@@ -424,20 +424,40 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
                     provider_turn=result.turn,
                 )
             )
+            names = {t.name for t in offered}
+            # Reads asked for together are fetched together; the results are then masked and
+            # recorded in the order the model asked, so placeholders and the audit chain don't
+            # depend on which read came back first.
+            together = all(
+                BY_NAME[c.name].risk == "read" for c in result.tool_calls if c.name in BY_NAME
+            )
+            ran: list[ToolOutcome | None]
+            if together and len(result.tool_calls) > 1:
+                ran = list(
+                    await asyncio.gather(
+                        *(
+                            _execute(executor, c.name, c.arguments, names, progress)
+                            for c in result.tool_calls
+                        )
+                    )
+                )
+            else:
+                ran = [
+                    await _execute(executor, c.name, c.arguments, names, progress)
+                    for c in result.tool_calls
+                ]
             parts: list[TextPart | ToolResultPart] = []
-            for call in result.tool_calls:
+            for call, done in zip(result.tool_calls, ran, strict=True):
                 parts.append(
-                    await _run_tool(
+                    await _record_tool(
                         deps,
                         inp,
                         state,
-                        executor,
                         call.name,
                         call.arguments,
                         call.call_id,
-                        {t.name for t in offered},
+                        done,
                         known_names,
-                        progress,
                     )
                 )
             new.append(Message(role="user", parts=parts))  # type: ignore[arg-type]
@@ -747,25 +767,35 @@ async def _log_call(
         )
 
 
-async def _run_tool(
-    deps: TurnDeps,
-    inp: TurnInput,
-    state: TurnState,
+async def _execute(
     executor: Executor,
     name: str,
     arguments: dict[str, Any],
-    call_id: str,
     offered: set[str],
-    known_names: list[str],
     progress: Progress,
+) -> ToolOutcome | None:
+    """Runs one tool call against the bank's systems; None if the tool wasn't offered."""
+    if name not in BY_NAME or name not in offered:
+        return None
+    await progress("tool", TOOL_LABELS.get(name, "Preparing that for you"))
+    return await executor.run(name, arguments)
+
+
+async def _record_tool(
+    deps: TurnDeps,
+    inp: TurnInput,
+    state: TurnState,
+    name: str,
+    arguments: dict[str, Any],
+    call_id: str,
+    outcome: ToolOutcome | None,
+    known_names: list[str],
 ) -> ToolResultPart:
     tool = BY_NAME.get(name)
-    if tool is None or name not in offered:
+    if outcome is None:
         outcome_content: dict[str, Any] = {"error": "That tool isn't available for this request."}
-        is_error, outcome = True, None
+        is_error = True
     else:
-        await progress("tool", TOOL_LABELS.get(name, "Preparing that for you"))
-        outcome = await executor.run(name, arguments)
         outcome_content, is_error = outcome.content, outcome.is_error
     content = mask(json.dumps(outcome_content, default=str), state.vault, known_names)
     state.new_placeholders += content.new_placeholders
@@ -915,10 +945,21 @@ async def _context_note(
     customer = await executor.bank.call(
         "GET", "/v1/customer", sandbox_id=executor.sandbox_id, customer_id=executor.customer_id
     )
+    # The references let the first read go straight to the right account or card ("my last few
+    # transactions" needs A1) instead of spending a model round on get_accounts first. Balances
+    # and statuses change, so they stay with the tools.
+    refs = await executor.refs()
+    accounts = "; ".join(f"{ref}, {a['product']}" for ref, a in refs.accounts.items())
+    cards = "; ".join(
+        f"{ref}, {c['kind']} card ending {c['last4']} on the {c['account_product']}"
+        for ref, c in refs.cards.items()
+    )
     note = (
         f"The signed-in customer is {customer['full_name']}, who goes by {customer['first_name']}. "
-        f"Segment: {customer['segment']}. Home branch: {customer['home_branch']}. Their accounts, cards, "
-        "loans and saved recipients are available through the tools."
+        f"Segment: {customer['segment']}. Home branch: {customer['home_branch']}. "
+        f"Their accounts: {accounts or 'none'}. Their cards: {cards or 'none'}. Use these "
+        "references in tool arguments. Balances, transactions, card status, loans and saved "
+        "recipients come from the tools."
     )
     masked = mask(note, vault, known_names)
     state.new_placeholders += masked.new_placeholders

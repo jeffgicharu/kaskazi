@@ -186,7 +186,7 @@ def create_app(pool: asyncpg.Pool) -> FastAPI:
         async with tx(ctx) as conn:
             rows = await conn.fetch(
                 "SELECT id, product, number, currency, balance, status FROM corebank.accounts "
-                "WHERE customer_id = $1 ORDER BY opened_on",
+                "WHERE customer_id = $1 ORDER BY opened_on, number",  # the tools' A1, A2 stay put
                 ctx.customer_id,
             )
         return [_plain(dict(r)) for r in rows]
