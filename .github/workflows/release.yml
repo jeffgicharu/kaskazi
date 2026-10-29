@@ -230,14 +230,20 @@ jobs:
           printf '%s\n' "$ACTIVATE_KEY" > ~/.ssh/activate && chmod 600 ~/.ssh/activate
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
 
+      # The server's address is a secret too: visitors reach the site through Cloudflare, and the
+      # address is shared with other sites.
       - name: Upload
+        env:
+          DEPLOY_HOST: ${{ secrets.KASKAZI_DEPLOY_HOST }}
         run: |
           tar -xf release.tar
           rsync -rlpt -z --chmod=go+rX,go-w \
             -e "ssh -i $HOME/.ssh/upload -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
-            release/ "deploy@SERVER_ADDRESS:$GITHUB_SHA/"
+            release/ "deploy@$DEPLOY_HOST:$GITHUB_SHA/"
 
       - name: Activate
+        env:
+          DEPLOY_HOST: ${{ secrets.KASKAZI_DEPLOY_HOST }}
         run: |
           ssh -i "$HOME/.ssh/activate" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            deploy@SERVER_ADDRESS "$GITHUB_SHA"
+            deploy@"$DEPLOY_HOST" "$GITHUB_SHA"
