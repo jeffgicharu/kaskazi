@@ -141,12 +141,21 @@ class Executor:
         return ToolOutcome({"loans": await self._call("GET", "/v1/loans")})
 
     async def _check_loan_eligibility(
-        self, amount: int | None = None, term_months: int | None = None
+        self,
+        amount: int | None = None,
+        term_months: int | None = None,
+        net_monthly_pay: int | None = None,
+        other_monthly_repayments: int | None = None,
     ) -> ToolOutcome:
         result = await self._call(
             "POST",
             "/v1/loans/personal/eligibility",
-            json={"amount": amount, "term_months": term_months},
+            json={
+                "amount": amount,
+                "term_months": term_months,
+                "net_monthly_pay": net_monthly_pay,
+                "other_monthly_repayments": other_monthly_repayments,
+            },
         )
         return ToolOutcome(
             {"eligibility": result, "note": "Indicative only: a person decides every loan."},

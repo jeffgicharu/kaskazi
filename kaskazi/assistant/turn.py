@@ -313,7 +313,12 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
         return await _template(deps, inp, state, user_message, reply, "handover", {}, notice)
 
     if decision == "answer_and_hand_over":
-        state.handover = {"reason": "Possible fraud", "urgent": True, "trigger": "fraud"}
+        situation = router["sensitive_situation"]
+        state.handover = {
+            "reason": ANSWER_AND_HAND_OVER[situation],
+            "urgent": situation == "fraud",
+            "trigger": situation,
+        }
 
     # --- Answer: retrieve, generate, check ---------------------------------------------------
     await progress("searching", "Searching the bank's documents")
@@ -374,6 +379,20 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
     if state.first_turn:
         new.append(await _context_note(executor, vault, known_names, state))
     new += notes
+    if decision == "answer_and_hand_over":
+        new.append(
+            Message(
+                role="system",
+                parts=[
+                    TextPart(
+                        text="Bank system: this conversation is also being passed to a colleague, "
+                        f"because the customer described {HANDOVER_SITUATIONS[router['sensitive_situation']]}. "
+                        "Answer what you can from the passages and tools, then tell the customer a "
+                        "colleague will reply in this chat. Don't call hand_over: it is done."
+                    )
+                ],
+            )
+        )
 
     system_prompt = prompt("assistant.system")
     final: GenerateResult | None = None
@@ -506,6 +525,18 @@ async def run_turn(deps: TurnDeps, inp: TurnInput, progress: Progress) -> dict[s
 # --- Steps ---------------------------------------------------------------------------------------
 
 
+# Situations that get an answer and a person; the reason the colleague sees in the queue.
+ANSWER_AND_HAND_OVER = {
+    "fraud": "Possible fraud",
+    "bereavement": "Bereavement",
+    "hardship": "Money troubles",
+}
+HANDOVER_SITUATIONS = {
+    "fraud": "possible fraud",
+    "bereavement": "a bereavement",
+    "hardship": "money troubles",
+}
+
 FIGURES_NOTE = (
     "Bank system check: your answer gave figures that are not in the passages or tool results: "
 )
@@ -539,9 +570,10 @@ def _decide(router: dict[str, Any], risk: str) -> str:
         return "refuse_injection"
     if router["intent"] == "off_topic" and router["confidence"] >= 0.6:
         return "refuse_off_topic"
-    if router["sensitive_situation"] == "fraud" and router["intent"] != "wants_person":
-        # Fraud goes to a person, but the customer may need to block a card first: answer with
-        # the tools and hand over as well.
+    if router["sensitive_situation"] in ANSWER_AND_HAND_OVER and router["intent"] != "wants_person":
+        # These go to a person, but the documents and tools can help at once: a card can be
+        # blocked now, credit life insurance and what happens to an advance are written down.
+        # Answer, and hand over as well. Distress goes straight to a person.
         return "answer_and_hand_over"
     if router["intent"] == "wants_person" or router["sensitive_situation"] != "none":
         return "hand_over"

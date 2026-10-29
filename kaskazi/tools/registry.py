@@ -99,6 +99,8 @@ TOOLS: list[ToolDef] = [
         "Whether the customer can get a Kaskazi Personal Loan, worked out by the bank's rules from their "
         "own pay and existing loans: the affordability limit, the room for a new instalment, the largest "
         "loan for each term, and reasons if they don't qualify. Give amount and term to check a specific loan. "
+        "If the customer asks a what-if with figures of their own (their net pay, other loan repayments), "
+        "pass those figures: the result then uses them instead of the bank's records and says so. "
         "This is not a decision: a person decides every loan.",
         _schema(
             {
@@ -109,6 +111,14 @@ TOOLS: list[ToolDef] = [
                 "term_months": {
                     "type": ["integer", "null"],
                     "description": "Term in months, if named.",
+                },
+                "net_monthly_pay": {
+                    "type": ["integer", "null"],
+                    "description": "Net monthly pay in KES, only if the customer gave their own figure.",
+                },
+                "other_monthly_repayments": {
+                    "type": ["integer", "null"],
+                    "description": "Monthly repayments on other loans in KES, only if the customer gave a figure.",
                 },
             }
         ),

@@ -88,3 +88,20 @@ def test_figures_may_come_from_any_turn_but_not_from_the_models_own_words() -> N
     # The model's earlier words and a figures-check note support nothing.
     assert check("The fee is KES 99.", sources).unsupported == ["KES 99"]
     assert check("The fee is KES 77.", sources).unsupported == ["KES 77"]
+
+
+def test_who_gets_an_answer_and_who_gets_a_person() -> None:
+    from kaskazi.assistant.turn import _decide
+
+    def route(intent: str = "question", situation: str = "none") -> dict[str, object]:
+        return {"intent": intent, "sensitive_situation": situation, "confidence": 0.9}
+
+    assert _decide(route(), "high") == "refuse_injection"
+    assert _decide(route("off_topic"), "none") == "refuse_off_topic"
+    # The documents and tools can help at once, and a person follows.
+    for situation in ("fraud", "bereavement", "hardship"):
+        assert _decide(route("question", situation), "none") == "answer_and_hand_over"
+    # Distress, or asking for a person, goes straight to a person.
+    assert _decide(route("question", "distress"), "none") == "hand_over"
+    assert _decide(route("wants_person", "fraud"), "none") == "hand_over"
+    assert _decide(route(), "low") == "answer"

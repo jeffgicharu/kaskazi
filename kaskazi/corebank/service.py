@@ -64,6 +64,12 @@ class LoanRequest(BaseModel):
     term_months: int | None = Field(default=None, ge=1, le=120)
 
 
+class EligibilityRequest(LoanRequest):
+    # A what-if with the customer's own figures, in place of what the bank has on record.
+    net_monthly_pay: int | None = Field(default=None, ge=0, le=10_000_000)
+    other_monthly_repayments: int | None = Field(default=None, ge=0, le=10_000_000)
+
+
 class OwnTransfer(BaseModel):
     from_account_id: uuid.UUID
     to_account_id: uuid.UUID
@@ -295,22 +301,36 @@ def create_app(pool: asyncpg.Pool) -> FastAPI:
             raise Problem(422, "outside_limits", str(exc)) from exc
 
     @app.post("/v1/loans/personal/eligibility")
-    async def eligibility(ctx: Ctx, body: LoanRequest) -> dict[str, Any]:
+    async def eligibility(ctx: Ctx, body: EligibilityRequest) -> dict[str, Any]:
         async with tx(ctx) as conn:
             person, repayments, salaries = await _lending_facts(conn, ctx)
+        what_if = body.net_monthly_pay is not None or body.other_monthly_repayments is not None
         try:
             result = rules.personal_loan_eligibility(
                 date_of_birth=person["date_of_birth"],
                 today=datetime.now(UTC).date(),
-                net_monthly_pay=float(person["net_pay"] or 0),
+                net_monthly_pay=float(
+                    body.net_monthly_pay
+                    if body.net_monthly_pay is not None
+                    else person["net_pay"] or 0
+                ),
                 salary_credits_last_3_months=salaries,
-                existing_monthly_repayments=repayments,
+                existing_monthly_repayments=float(
+                    body.other_monthly_repayments
+                    if body.other_monthly_repayments is not None
+                    else repayments
+                ),
                 amount=body.amount,
                 term_months=body.term_months,
             )
         except rules.QuoteError as exc:
             raise Problem(422, "outside_limits", str(exc)) from exc
-        return result.as_dict()
+        return {
+            **result.as_dict(),
+            "based_on": "figures the customer gave"
+            if what_if
+            else "the customer's pay and loans on the bank's records",
+        }
 
     @app.post("/v1/loans/salary-advance/limit")
     async def advance_limit(ctx: Ctx) -> dict[str, Any]:

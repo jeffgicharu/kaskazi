@@ -192,3 +192,17 @@ async def test_eligibility_uses_the_customers_own_figures(
     assert result["affordability_limit"] == 27_576
     assert result["existing_monthly_repayments"] == 14_617
     assert result["room_for_new_instalment"] == 12_959
+    assert result["based_on"] == "the customer's pay and loans on the bank's records"
+
+    # A what-if with figures she gives: 40% of 80,000 is 32,000, less 15,000 elsewhere.
+    what_if = await bank.call(
+        "POST",
+        "/v1/loans/personal/eligibility",
+        sandbox_id=sandbox,
+        customer_id=customer,
+        json={"net_monthly_pay": 80_000, "other_monthly_repayments": 15_000},
+    )
+    assert what_if["based_on"] == "figures the customer gave"
+    assert what_if["room_for_new_instalment"] == 17_000
+    assert what_if["largest_loan_by_term"]["36"] == 486_971
+    assert what_if["largest_loan_by_term"]["60"] == 706_787
