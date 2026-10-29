@@ -1,6 +1,8 @@
 """The OpenAI adapter, used when Anthropic fails or times out, and for embeddings.
 
-It uses the Responses API with `store: false`, so OpenAI keeps no copy of the conversation.
+It uses the Responses API with `store: false`, so responses aren't stored for later retrieval.
+(OpenAI's own retention of API traffic for abuse monitoring still applies; only a
+zero-retention agreement removes it.)
 OpenAI has no citations feature for supplied documents, so passages are given short ids
 (`[S1]`, `[S2]`) and the model is told to put the id after each sentence that uses one. The ids
 that come back are mapped to passages and checked against the passages actually sent; the

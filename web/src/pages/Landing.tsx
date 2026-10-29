@@ -55,8 +55,8 @@ export function Landing() {
           </h1>
           <p className="lede">
             Kaskazi Bank isn't real: its products, prices and customers are sample data. The AI is real. Every
-            answer comes from the bank's own documents, every change waits for your confirmation, and personal
-            details are hidden before any AI service sees them.
+            answer comes from the bank's own documents, every change waits for your confirmation, and in the chat
+            your personal details are hidden before any AI service sees them.
           </p>
         </section>
 
