@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { ApiError, api } from "../../api/client";
 import { DemoBanner, Wordmark } from "../../components/Brand";
 import { useEventStream } from "../../hooks/useEventStream";
 import { when } from "../../lib/format";
+import { EvaluationsView, MonitoringView, PromptsView } from "./LeadViews";
 
 type Role = "agent" | "reviewer" | "ai_lead";
 type Handover = {
@@ -81,9 +82,35 @@ function Console({ role }: { role: Role }) {
         </header>
       </div>
       <main id="main" className="console-main">
-        {role === "ai_lead" ? <AuditTrail /> : <HandoverQueue />}
+        {role === "ai_lead" ? <LeadConsole /> : <HandoverQueue />}
       </main>
     </div>
+  );
+}
+
+const LEAD_VIEWS = [
+  { key: "audit", label: "Audit trail" },
+  { key: "monitoring", label: "Monitoring" },
+  { key: "evaluations", label: "Evaluations" },
+  { key: "prompts", label: "Prompts" },
+] as const;
+type LeadView = (typeof LEAD_VIEWS)[number]["key"];
+
+function LeadConsole() {
+  const [params, setParams] = useSearchParams();
+  const asked = params.get("view");
+  const view: LeadView = LEAD_VIEWS.some((v) => v.key === asked) ? (asked as LeadView) : "audit";
+  return (
+    <>
+      <nav className="lead-nav" aria-label="AI lead views">
+        {LEAD_VIEWS.map((v) => (
+          <button key={v.key} type="button" className={`lead-tab${v.key === view ? " is-current" : ""}`} aria-current={v.key === view ? "page" : undefined} onClick={() => setParams(v.key === "audit" ? {} : { view: v.key })}>
+            {v.label}
+          </button>
+        ))}
+      </nav>
+      {view === "monitoring" ? <MonitoringView /> : view === "evaluations" ? <EvaluationsView /> : view === "prompts" ? <PromptsView /> : <AuditTrail />}
+    </>
   );
 }
 

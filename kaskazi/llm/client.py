@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 
 from kaskazi.llm.contract import (
@@ -65,6 +67,16 @@ class GatewayClient:
             return GatewayError(
                 refusal=GatewayRefusal.ALL_PROVIDERS_FAILED, detail=str(response.status_code)
             )
+
+    async def status(self) -> dict[str, Any] | None:
+        """The caps, the site's spending against them and the breakers; None if unreachable."""
+        try:
+            response = await self._http.get("/v1/status", timeout=3.0)
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return None
+        body: dict[str, Any] = response.json()
+        return body
 
     async def allowance(self, budget: BudgetContext) -> Allowance | None:
         try:

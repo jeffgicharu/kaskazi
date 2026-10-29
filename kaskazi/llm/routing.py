@@ -94,6 +94,13 @@ class CircuitBreaker:
         self._open_until = 0.0
         self._probing = False
 
+    def state(self, now: float | None = None) -> str:
+        """closed (calls go through), open (they don't), or half_open (one probe may)."""
+        now = time.monotonic() if now is None else now
+        if not self._open_until:
+            return "closed"
+        return "open" if now < self._open_until else "half_open"
+
     def allow(self, now: float | None = None) -> bool:
         now = time.monotonic() if now is None else now
         if now < self._open_until:

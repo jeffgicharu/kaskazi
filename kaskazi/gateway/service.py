@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import asyncpg
@@ -347,7 +348,11 @@ def create_app(settings: GatewaySettings, gateway: Gateway | None = None) -> Fas
             yield
             return
         pool = await create_pool(settings.database_url, max_size=2)
-        routes, embedding = load_routes()
+        # Another routes file is for measuring a variant locally (evals/answers.py --routes). A
+        # gateway with one reports it on /healthz, and the release check refuses it.
+        override = os.environ.get("KASKAZI_GATEWAY_ROUTES")
+        app.state.routes_override = override
+        routes, embedding = load_routes(Path(override)) if override else load_routes()
         providers = build_providers(settings)
         app.state.gateway = Gateway(
             pool, providers, routes, embedding, settings.caps, ai_enabled=settings.ai_enabled
@@ -379,6 +384,7 @@ def create_app(settings: GatewaySettings, gateway: Gateway | None = None) -> Fas
             "ok": True,
             "release": release_id(),
             "fake_providers": bool(getattr(app.state, "fake", False)),
+            "routes_override": bool(getattr(app.state, "routes_override", None)),
         }
 
     @app.post("/v1/generate", dependencies=[Depends(authorised)])
@@ -397,6 +403,23 @@ def create_app(settings: GatewaySettings, gateway: Gateway | None = None) -> Fas
     async def allowance(budget: BudgetContext) -> Allowance:
         result: Allowance = await app.state.gateway.ledger.allowance(budget)
         return result
+
+    @app.get("/v1/status", dependencies=[Depends(authorised)])
+    async def status() -> dict[str, Any]:
+        """For the staff console: the caps, what has been spent against them, the breakers."""
+        gw: Gateway = app.state.gateway
+        caps = gw.ledger.caps
+        return {
+            "ai_enabled": gw.ledger.ai_enabled,
+            "caps": {
+                "day_usd": caps.site_day_usd,
+                "month_usd": caps.site_month_usd,
+                "visitor_day_usd": caps.visitor_day_usd,
+                "address_day_usd": caps.address_day_usd,
+            },
+            "spent": await gw.ledger.totals(),
+            "breakers": {name: b.state() for name, b in gw.generator.breakers.items()},
+        }
 
     @app.get("/v1/models", dependencies=[Depends(authorised)])
     async def models() -> Response:

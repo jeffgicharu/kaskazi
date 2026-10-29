@@ -127,6 +127,31 @@ test("the AI lead sees an intact audit trail", async ({ page }) => {
   await noAxeViolations(page, "audit trail");
 });
 
+test("the AI lead's monitoring, evaluations and prompts load and pass axe", async ({ page }) => {
+  await startAsAmina(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open as the AI lead" }).click();
+  const views = page.getByRole("navigation", { name: "AI lead views" });
+
+  await views.getByRole("button", { name: "Monitoring" }).click();
+  await expect(page).toHaveURL(/view=monitoring/);
+  await expect(page.getByRole("heading", { name: "Monitoring" })).toBeVisible();
+  await expect(page.getByRole("meter").first()).toBeVisible();
+  await noAxeViolations(page, "monitoring");
+  await noSidewaysScroll(page);
+
+  await views.getByRole("button", { name: "Evaluations" }).click();
+  await expect(page.getByRole("heading", { name: "Evaluations" })).toBeVisible();
+  await expect(page.getByText(/Router: \d+ labelled messages/)).toBeVisible();
+  await noAxeViolations(page, "evaluations");
+
+  await views.getByRole("button", { name: "Prompts" }).click();
+  await expect(page.getByRole("heading", { name: "assistant.router" })).toBeVisible();
+  await page.getByRole("button", { name: "Show the text" }).first().click();
+  await expect(page.locator(".payload").first()).toContainText("Kaskazi");
+  await noAxeViolations(page, "prompts");
+});
+
 test("an unknown page is the app's own not-found page", async ({ page }) => {
   await page.goto("/no-such-page");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("There's no page here.");

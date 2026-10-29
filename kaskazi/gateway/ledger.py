@@ -68,6 +68,13 @@ class Ledger:
             row = await conn.fetchrow(_TOTALS, month, day, _uuid(budget.sandbox_id), budget.ip_hash)
         return self._allowance(row, budget)
 
+    async def totals(self) -> dict[str, float]:
+        """The whole site's spending today and this month (Nairobi time), reservations included."""
+        day, month = nairobi_day()
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(_TOTALS, month, day, None, None)
+        return {"day_usd": float(row["day_total"]), "month_usd": float(row["month_total"])}
+
     def _allowance(self, row: asyncpg.Record, budget: BudgetContext) -> Allowance:
         exempt = budget.exempt_from_visitor_caps
         return Allowance(

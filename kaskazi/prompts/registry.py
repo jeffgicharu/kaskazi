@@ -44,7 +44,7 @@ class Prompt:
         return f"{self.id}@{self.version}"
 
 
-def _semver(version: str) -> tuple[int, int, int]:
+def semver(version: str) -> tuple[int, int, int]:
     major, minor, patch = (int(x) for x in version.split("."))
     return major, minor, patch
 
@@ -80,7 +80,7 @@ def load_prompts(root: Path = ROOT) -> dict[str, Prompt]:
 
     current: dict[str, Prompt] = {}
     for p in all_versions(root):
-        if p.id not in current or _semver(p.version) > _semver(current[p.id].version):
+        if p.id not in current or semver(p.version) > semver(current[p.id].version):
             current[p.id] = p
     return current
 

@@ -10,6 +10,7 @@ tool calls. They work from the summary and the transcript, not from raw identifi
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Annotated, Any, Literal
 
@@ -29,7 +30,7 @@ from kaskazi.api.sessions import (
     staff_cookie,
 )
 from kaskazi.audit.log import record
-from kaskazi.db.pool import visitor_tx
+from kaskazi.db.pool import plain_tx, visitor_tx
 
 router = APIRouter(prefix="/api/console")
 Svc = Annotated[Services, Depends(services)]
@@ -372,3 +373,175 @@ async def outage(body: OutageSwitch, s: Lead, svc: Svc) -> dict[str, bool]:
             conn, "control_changed", {"simulate_primary_outage": body.simulate_primary_outage}
         )
     return {"simulate_primary_outage": body.simulate_primary_outage}
+
+
+# --- Monitoring, evaluations and prompts -------------------------------------------------------
+#
+# Monitoring is the one view across every visitor, and it is numbers only: the turn and rating
+# figures come from two functions that can return nothing but aggregates (migration 0003), the
+# calls and spending from the gateway's own ledger, which holds no content.
+
+
+def _num(value: Any) -> float | None:
+    return None if value is None else round(float(value), 6)
+
+
+@router.get("/monitoring")
+async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
+    days = max(1, min(days, 30))
+    async with plain_tx(svc.pool) as conn:
+        since = await conn.fetchval("SELECT now() - make_interval(days => $1)", days)
+        turns = await conn.fetch("SELECT * FROM app.site_turn_stats($1)", since)
+        feedback = await conn.fetch("SELECT * FROM app.site_feedback_stats($1)", since)
+        calls = await conn.fetch(
+            """SELECT route, provider, model, count(*) AS calls,
+                      count(*) FILTER (WHERE outcome <> 'ok') AS failures,
+                      percentile_disc(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,
+                      percentile_disc(0.9) WITHIN GROUP (ORDER BY latency_ms) AS p90_ms,
+                      sum(cost_usd) AS cost_usd,
+                      sum(cache_read_tokens) AS cache_read_tokens,
+                      sum(input_tokens + cache_read_tokens + cache_write_tokens) AS prompt_tokens
+               FROM gateway.calls WHERE at > now() - interval '24 hours'
+               GROUP BY 1, 2, 3 ORDER BY 1, 2, 3"""
+        )
+        refusals = await conn.fetch(
+            "SELECT reason, count(*) AS refusals FROM gateway.refusals "
+            "WHERE at > now() - interval '24 hours' GROUP BY 1 ORDER BY 2 DESC"
+        )
+    return {
+        "days": days,
+        "gateway": await svc.gateway.status(),
+        "turns": [
+            {
+                "day": r["day"].isoformat(),
+                "outcome": r["outcome"],
+                "turns": r["turns"],
+                "p50_ms": r["p50_ms"],
+                "p90_ms": r["p90_ms"],
+                "cost_usd": _num(r["cost_usd"]),
+                "fallbacks": r["fallbacks"],
+            }
+            for r in turns
+        ],
+        "feedback": [
+            {"rating": r["rating"], "reason": r["reason"], "ratings": r["ratings"]}
+            for r in feedback
+        ],
+        "calls_24h": [
+            {
+                "route": r["route"],
+                "provider": r["provider"],
+                "model": r["model"],
+                "calls": r["calls"],
+                "failures": r["failures"],
+                "p50_ms": r["p50_ms"],
+                "p90_ms": r["p90_ms"],
+                "cost_usd": _num(r["cost_usd"]),
+                # Embeddings have no prompt to cache.
+                "cache_share": round(r["cache_read_tokens"] / r["prompt_tokens"], 3)
+                if r["prompt_tokens"] and r["route"] != "embeddings"
+                else None,
+            }
+            for r in calls
+        ],
+        "refusals_24h": [{"reason": r["reason"], "refusals": r["refusals"]} for r in refusals],
+    }
+
+
+@router.get("/evaluations")
+async def evaluations(s: Lead) -> dict[str, Any]:
+    from kaskazi.release.evalgate import REPORTS, gate, reports, summarise
+
+    this_release = _release_fingerprint()
+    answers = []
+    for path in reversed(reports()):
+        report = json.loads(path.read_text())
+        # Recomputed from the cases with today's gate, exactly as CI does, not as stored.
+        metrics = summarise(report["results"])
+        baseline_path = REPORTS / report["baseline"] if report.get("baseline") else None
+        baseline = (
+            summarise(json.loads(baseline_path.read_text())["results"])
+            if baseline_path and baseline_path.exists()
+            else None
+        )
+        reasons = gate(metrics, baseline)
+        answers.append(
+            {
+                "name": path.name,
+                "run_on": report["run_on"],
+                "label": report.get("label"),
+                "fingerprint": report["fingerprint"]["total"][:12],
+                "covers_this_release": report["fingerprint"]["total"] == this_release,
+                "baseline": report.get("baseline"),
+                "metrics": metrics,
+                "gate": {"passed": not reasons, "reasons": reasons},
+                "judge_cost_usd": report.get("judge_cost_usd"),
+                # The cases that missed or contradicted something, to read rather than trust.
+                "misses": [
+                    {
+                        "id": r["id"],
+                        "question": r["question"],
+                        "outcome": r.get("outcome"),
+                        "answer": r.get("answer", "")[:600],
+                        "criteria": [c for c in r.get("criteria", []) if c["verdict"] != "met"],
+                    }
+                    for r in report["results"]
+                    if r.get("error") or any(c["verdict"] != "met" for c in r.get("criteria", []))
+                ][:40],
+            }
+        )
+    other = []
+    for path in sorted(REPORTS.glob("*.json")):
+        if path.name.startswith("answers-"):
+            continue
+        report = json.loads(path.read_text())
+        other.append({"name": path.name, "run_on": report.get("run_on"), "report": report})
+    return {
+        "this_release": this_release[:12] if this_release else None,
+        "answers": answers,
+        "other": other,
+    }
+
+
+def _release_fingerprint() -> str | None:
+    """The AI fingerprint this release was built with (written by scripts/build-release.sh)."""
+    from kaskazi.release.fingerprint import ROOT
+
+    path = ROOT / "fingerprint.json"
+    if not path.exists():
+        return None
+    total: str = json.loads(path.read_text())["total"]
+    return total
+
+
+@router.get("/prompts")
+async def prompts(s: Lead, svc: Svc) -> dict[str, Any]:
+    """Every version of every prompt in this release's files, newest first, with the release that
+    first used it where one has."""
+    from kaskazi.prompts.registry import all_versions, load_prompts, semver
+
+    live = {p.id: p.version for p in load_prompts().values()}
+    async with plain_tx(svc.pool) as conn:
+        first = {
+            (r["prompt_id"], r["version"]): r["first_release"]
+            for r in await conn.fetch(
+                "SELECT prompt_id, version, first_release FROM app.prompt_versions"
+            )
+        }
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for p in sorted(all_versions(), key=lambda p: (p.id, semver(p.version)), reverse=True):
+        released = first.get((p.id, p.version))
+        grouped.setdefault(p.id, []).append(
+            {
+                "version": p.version,
+                "owner": p.owner,
+                "route": p.route,
+                "hash": p.content_hash[:12],
+                "change": p.change_note,
+                "changed_on": p.changed_on.isoformat(),
+                "first_release": released[:7] if released else None,
+                "live": live.get(p.id) == p.version,
+                "body": p.body,
+            }
+        )
+    return {"prompts": [{"id": k, "versions": v} for k, v in sorted(grouped.items())]}

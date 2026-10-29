@@ -13,6 +13,10 @@ export KASKAZI_GATEWAY_DATABASE_URL="$(printf "$DB" kaskazi_gateway)"
 if [[ "${KASKAZI_DEV_REAL:-0}" != 1 ]]; then
     export KASKAZI_GATEWAY_FAKE_PROVIDERS=1
 fi
+# Every local request comes from one address, so its daily cap would stop an evaluation run
+# within a few dozen questions. Real spending locally is still capped, at a few dollars a day.
+export KASKAZI_CAP_ADDRESS_DAY_USD="${KASKAZI_CAP_ADDRESS_DAY_USD:-3}"
+export KASKAZI_CAP_DAY_USD="${KASKAZI_CAP_DAY_USD:-3}"
 .venv/bin/python -m kaskazi.gateway serve &
 gateway=$!
 
