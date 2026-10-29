@@ -1,10 +1,9 @@
-import { DemoBanner, Wordmark } from "../components/Brand";
+import { Wordmark } from "../components/Brand";
 
 /** Shown if a page fails while drawing. The details go to the console, not to the visitor. */
 export function ErrorPage() {
   return (
     <>
-      <DemoBanner />
       <header className="site-header">
         <Wordmark />
       </header>

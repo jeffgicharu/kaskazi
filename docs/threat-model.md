@@ -6,7 +6,7 @@ edition](https://genai.owasp.org/llm-top-10/), read on 29 October 2026, followed
 any web application carries. Each control names the file that implements it and the test or
 evaluation that checks it. What is left over is said plainly.
 
-Kaskazi Bank is invented and its data is sample data, so no real customer can be harmed here.
+Kaskazi runs on sample data, so no real customer can be harmed here.
 The model is written as if the data were real, because the point is to show how a bank would
 reason about it.
 

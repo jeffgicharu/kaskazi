@@ -6,7 +6,7 @@ were measured on 29 October 2026, on release fingerprint `8d86fcd13f54`, against
 
 ## What it is
 
-Three things built on one platform, for an invented Kenyan bank:
+Three things built on one platform:
 
 - **The customer assistant** answers questions about the bank's products, fees and rules from
   the bank's own documents, with citations the customer can open. It does tasks through tools on
@@ -39,8 +39,8 @@ with an owner and a change history (`prompts/`).
 ## Intended use
 
 A demonstration of how a bank could build and run these things: the design, the controls and
-the measurement. It is not for real customers or real documents. Kaskazi Bank isn't a bank,
-and every product, price, customer and document in it is invented.
+the measurement. It runs on sample data: Kaskazi isn't a real bank, and its products, prices,
+customers and documents aren't real.
 
 ## How well it works
 
@@ -136,7 +136,7 @@ measured, and the ones it doubts are often wrong, which is why they go to a pers
 ## Limits
 
 - **Sample data only.** The bank, its documents, its customers and the documents on the desk are
-  all invented, and generated documents are cleaner than real ones. Every figure above is an
+  all sample data, and generated documents are cleaner than real ones. Every figure above is an
   upper bound on what a bank would see with real customers; a bank would measure again on its
   own documents and conversations, starting from the reviewers' corrections, which the desk
   keeps as labelled data.

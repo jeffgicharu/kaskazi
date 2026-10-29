@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { ApiError, api } from "../../api/client";
-import { DemoBanner, Wordmark } from "../../components/Brand";
+import { Wordmark } from "../../components/Brand";
 import { useEventStream } from "../../hooks/useEventStream";
 import { when } from "../../lib/format";
 import { EvaluationsView, FeedbackView, MonitoringView, PromptsView } from "./LeadViews";
@@ -38,7 +38,6 @@ export function ConsolePage() {
   if (me.isError || !me.data) {
     return (
       <div className="console-shell">
-        <DemoBanner />
         <main className="console-empty" id="main">
           <h1>The staff console</h1>
           <p>Open it from the home page, after choosing a sample customer: it works on your own copy.</p>
@@ -66,7 +65,6 @@ function Console({ role }: { role: Role }) {
     <div className="console-shell">
       <a className="skip-link" href="#main">Skip to the main content</a>
       <div className="app-top">
-        <DemoBanner />
         <header className="console-header">
           <Wordmark to="/" />
           <span className="console-title">Staff console</span>

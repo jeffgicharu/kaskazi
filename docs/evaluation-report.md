@@ -182,7 +182,7 @@ was misread; the check that net pay equals gross less deductions caught the misr
 
 ## Limits of these measurements
 
-- Everything is sample data: an invented bank, invented customers, generated documents. Real
+- Everything is sample data: the bank, its customers and the documents. Real
   conversations and real documents would score lower; a bank would measure again on its own.
 - The sets are small. They are enough to choose between settings and to catch a regression, not
   to quote a rate to the decimal.

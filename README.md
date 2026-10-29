@@ -1,11 +1,11 @@
 # Kaskazi Bank
 
-An AI platform for an invented Kenyan bank: a customer assistant, a document desk and a staff
-console, with the controls, evaluations and monitoring a bank would expect around them.
+Kaskazi is an AI banking platform: a customer assistant, a document desk and a staff console,
+with the controls, evaluations and monitoring a bank would expect around them.
 
-**Live at [kaskazi.jeffgicharu.com](https://kaskazi.jeffgicharu.com).** Kaskazi Bank isn't real.
-Its products, prices, customers and documents are all sample data, and the site says so on every
-page. The AI is real: Claude, with OpenAI as the fallback.
+**Live at [kaskazi.jeffgicharu.com](https://kaskazi.jeffgicharu.com).** It runs on sample data:
+the bank, its products and its customers aren't real. The AI is real: Claude, with OpenAI as the
+fallback.
 
 ![The customer assistant answering with a citation and a confirmation card](docs/screenshots/chat.png)
 
@@ -162,8 +162,7 @@ the whole history and an import check on the server's CPU, and deploys only from
 Building it, every evaluation run included, cost about $6.80 in model calls. Running the
 demonstration is capped at $40 a month.
 
-## Not a real bank
+## Notes
 
-Kaskazi Bank is invented, and no real bank's name, products or look is used. Nothing here is
-certified or endorsed by anyone, and it has no real customers. It exists to show how such a
-platform could be built and run.
+No real bank's name, products or look is used, and nothing here is certified or endorsed by
+anyone.

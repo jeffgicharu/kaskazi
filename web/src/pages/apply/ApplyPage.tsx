@@ -4,7 +4,7 @@ import { Link, Navigate } from "react-router";
 
 import { ApiError, api } from "../../api/client";
 import type { DeskDocument, DocKind, LoanApplication, LoanQuote, SampleDocument, Session } from "../../api/types";
-import { DemoBanner, Wordmark } from "../../components/Brand";
+import { Wordmark } from "../../components/Brand";
 import { money } from "../../lib/format";
 import { DocChecks, DocFields, DocStatus } from "./DocumentParts";
 
@@ -27,7 +27,6 @@ function Apply({ firstName }: { firstName: string }) {
     <div className="app-shell">
       <a className="skip-link" href="#main">Skip to the main content</a>
       <div className="app-top">
-        <DemoBanner />
         <header className="app-header">
           <Wordmark to="/" />
           <div className="app-header-meta">

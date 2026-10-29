@@ -2,20 +2,6 @@
  * Shared frame: the demonstration band, headers, footers
  * ------------------------------------------------------------------------------------------- */
 
-.demo-banner {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px var(--space-4);
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
-  color: var(--on-accent);
-  background:
-    repeating-linear-gradient(135deg, transparent 0 14px, rgb(255 255 255 / 0.07) 14px 28px),
-    var(--accent);
-}
-
 .site-header,
 .app-header {
   display: flex;
@@ -1796,16 +1782,10 @@
   background: var(--paper);
 }
 
-/* On a phone the console's header wraps to three lines; only the band stays on screen there. */
+/* On a phone the console's header wraps to three lines, so it scrolls away with the page there. */
 @media (max-width: 719px) {
   .console-shell .app-top {
     display: contents;
-  }
-
-  .console-shell .demo-banner {
-    position: sticky;
-    top: 0;
-    z-index: 5;
   }
 }
 

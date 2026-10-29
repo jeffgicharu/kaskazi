@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from "react-router";
 
 import { ApiError, api } from "../../api/client";
 import type { Conversation, Overview, Session, Source, ThreadMessage, TurnResult } from "../../api/types";
-import { DemoBanner, Wordmark } from "../../components/Brand";
+import { Wordmark } from "../../components/Brand";
 import { useEventStream, type StreamEvent } from "../../hooks/useEventStream";
 import { money, time } from "../../lib/format";
 import { MessageView } from "./Messages";
@@ -110,7 +110,6 @@ function Chat({ session }: { session: Extract<Session, { signed_in: true }> }) {
     <div className="app-shell">
       <a className="skip-link" href="#composer">Skip to the message box</a>
       <div className="app-top">
-        <DemoBanner />
         <header className="app-header">
           <Wordmark to="/" />
           <div className="app-header-meta">

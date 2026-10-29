@@ -102,7 +102,7 @@ reviewed by a second person.
 
 ## The document desk
 
-`python -m evals.documents` generates 34 documents of invented people
+`python -m evals.documents` generates 34 documents for sample people
 (`kaskazi.documents.samples`): 10 payslips (two as phone photos), 10 specimen ID cards and 10
 statements, eight of them with a planted fault (net pay that doesn't add up, PAYE below the
 rates, a future pay period, a broken running balance, an under-age card holder) and four with a

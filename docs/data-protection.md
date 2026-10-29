@@ -5,8 +5,8 @@ Kenya's expectations of banks, and what a bank would still have to do. These are
 written while building the platform. They are not legal advice, nothing here has been reviewed
 by a lawyer, the regulator or an auditor, and the platform holds no certification of any kind.
 
-Kaskazi Bank is invented, and the demonstration processes no real person's data: its customers
-are sample data, and the site asks visitors not to upload real documents. The notes are written
+The platform runs on sample data and processes no real person's data: its customers are sample
+customers, and the site asks visitors not to upload real documents. The notes are written
 as if a bank were running it for real customers.
 
 Every source below was read from the regulator's own site on 29 October 2026. Quotes are
@@ -49,7 +49,7 @@ verbatim.
 | s.25(f) storage limitation | kept no longer than needed | A visitor's copy, its vault of masked values and its documents are deleted after a day without use. A bank would set retention by record type: the audit trail would be kept for as long as its record-keeping duties require. |
 | s.25(h) transfers | "not transferred outside Kenya, unless there is proof of adequate data protection safeguards or consent from the data subject" | See *Data leaving Kenya* below. |
 | s.41 by design and by default | measures chosen with the processing, including "pseudonymisation and encryption" (s.41(4)(c)) | Placeholders are pseudonymisation. The vault is encrypted with AES-256-GCM per conversation. Row-level security keeps each copy's data apart. The gateway refuses any model call that still carries an unmasked identifier. |
-| s.26 rights | access, correction, deletion, objection | The invented bank's privacy notice (`corpus/documents/privacy-notice.md`) explains them. A bank would wire the assistant's requests into its existing rights process; the audit trail shows exactly what was processed for each conversation. |
+| s.26 rights | access, correction, deletion, objection | The bank's sample privacy notice (`corpus/documents/privacy-notice.md`) explains them. A bank would wire the assistant's requests into its existing rights process; the audit trail shows exactly what was processed for each conversation. |
 | s.29 duty to notify | tell people, before collecting, who receives their data "including details of safeguards adopted" | The privacy notice names AI services as service providers, says some may process data outside Kenya, and explains the masking. The chat introduces itself as an AI assistant. A bank would name the providers and the safeguards. |
 
 ### The lawful basis (s.30)
@@ -152,7 +152,7 @@ September 2026 consultation is that guidance. As drafted, it would ask, among ot
 | The board holds "primary responsibility" (§2.3) | A governance matter for the bank. |
 | Agentic AI that can execute transactions is "a high-risk AI system", with authority limits, audit logs and the ability to override or suspend (§4.11.1) | The assistant prepares transactions but can't execute one: only the customer's tap on a confirmation card does (`kaskazi/assistant/actions.py`). Tools are offered by intent, and the audit trail records every call. One setting in the gateway (`KASKAZI_AI_ENABLED`) turns the AI off for the whole site, leaving the quick actions working (`docs/runbook.md`). A bank would still classify the assistant as high-risk, because it prepares transactions. |
 | Material decisions "not based solely on unverified outputs" (§4.10); human review of critical decisions, credit denial among them (§4.15.2) | A person decides every loan; every answer is checked before it is shown. |
-| Disclosure of AI "at the initial point of interaction", and customers told of each update as a new version (§4.15.1) | The chat opens by introducing itself as an AI assistant, and every page carries the demonstration banner. Every prompt and model setting is versioned and fingerprinted per release, so a bank could tell customers which version answered them. |
+| Disclosure of AI "at the initial point of interaction", and customers told of each update as a new version (§4.15.1) | The chat opens by introducing itself as an AI assistant. Every prompt and model setting is versioned and fingerprinted per release, so a bank could tell customers which version answered them. |
 | An AI register, and notice to CBK "within 24 hours of any AI incident" (Part V) | The monitoring view and the audit trail give the facts such a notice needs. The register and the reporting would be the bank's. |
 
 ## What this platform cannot show

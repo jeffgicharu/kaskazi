@@ -1,11 +1,10 @@
 import { Link } from "react-router";
 
-import { DemoBanner, Wordmark } from "../components/Brand";
+import { Wordmark } from "../components/Brand";
 
 export function NotFound() {
   return (
     <>
-      <DemoBanner />
       <header className="site-header">
         <Wordmark />
       </header>
