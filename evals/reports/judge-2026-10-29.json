@@ -160,7 +160,25 @@
     "missed -> missed": 12
    },
    "disagreements": []
+  },
+  {
+   "judge": {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "prompt": "evals.judge@1.2.0"
+   },
+   "cases": 19,
+   "criteria": 56,
+   "agreement": 1.0,
+   "false_contradictions": 0,
+   "missed_contradictions": 0,
+   "cost_usd": 0.064,
+   "confusion": {
+    "met -> met": 44,
+    "missed -> missed": 12
+   },
+   "disagreements": []
   }
  ],
- "decision": "Claude Haiku 5.5 at high effort with evals.judge@1.2.0, which also sees the records the assistant read: it agreed on all 56 criteria, as Sonnet 5.5 had on the first 51, at about a tenth of the cost."
+ "decision": "Claude Sonnet 5.5 at medium effort with evals.judge@1.2.0. It agreed on all 56 criteria, as Haiku 5.5 at high effort did; Sonnet is chosen because the assistant answers with Haiku, and no model grades its own answers."
 }

@@ -6,7 +6,7 @@ that chose it. The staff console shows them all under **AI lead → Evaluations*
 
 | What | Set | Command | Cost a run |
 |---|---|---|---|
-| The whole assistant, end to end | `golden/questions.jsonl`, 135 cases | `python -m evals.answers` | about $0.15 |
+| The whole assistant, end to end | `golden/questions.jsonl`, 135 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
 | The router | `router_cases.jsonl`, 49 messages | `python -m evals.router` | about $0.06 |
 | Retrieval | the golden set's 98 document questions | `python -m evals.retrieval` | free (cached vectors) |
 | The judge | `judge/calibration.jsonl`, 51 hand-labelled criteria | `python -m evals.judge_calibration measure` | under $0.01 |
@@ -42,7 +42,7 @@ Each answer is graded twice.
 over), whether a document answer cites a passage, whether a change produced a confirmation
 card, whether a warning appeared.
 
-**By a judge** for the facts: Claude Haiku 5.5 with the `evals.judge` prompt reads the question,
+**By a judge** for the facts: Claude Sonnet 5.5 with the `evals.judge` prompt reads the question,
 the answer, the passages it cited and the records the bank's systems returned to it, and gives
 each criterion one of *met*, *missed* or *contradicted*, with a sentence quoting what it relied
 on.
@@ -59,7 +59,11 @@ an earlier judge had called contradicted, and each set-up was measured against t
 | Haiku 5.5, high effort, prompt 1.1.0 | 51 | 100% | 0 | $0.004 |
 | Sonnet 5.5, medium effort, prompt 1.1.0 | 51 | 100% | 0 | $0.036 |
 | Haiku 5.5, medium effort, prompt 1.2.0 | 56 | 98.2% | 0 | $0.004 |
-| **Haiku 5.5, high effort, prompt 1.2.0** | **56** | **100%** | **0** | $0.004 |
+| Haiku 5.5, high effort, prompt 1.2.0 | 56 | 100% | 0 | $0.004 |
+| **Sonnet 5.5, medium effort, prompt 1.2.0** | **56** | **100%** | **0** | $0.064 |
+
+The judge is Sonnet 5.5, not the cheaper Haiku that agreed as well: the assistant answers with
+Haiku, and no model grades its own answers. Judging a full run costs about $0.45.
 
 Prompt 1.1.0 shows the judge the cited passages (the first judge called a fee from the bank's
 own documents "invented") and keeps *contradicted* for answers that say the opposite (three of
@@ -135,7 +139,7 @@ server's release check refuses it.
 | Router | Haiku 5.5, low effort, no thinking | `router-2026-10-29.json`: as fast and as accurate as adaptive thinking on 49 labelled messages; gpt-5.4-mini cost 20 times as much |
 | Retrieval | a first message searched by its own words for vectors and by the router's rewrite for keywords | `retrieval-2026-10-29.json`: document recall 0.969, against 0.929 for the rewrite alone |
 | Answers | Haiku 5.5, low effort, adaptive thinking | `answers-2026-10-29-variant-answer-no-thinking.json`: without thinking, replies were a second faster at the median, but two of three changes produced no confirmation card and fewer answers cited a passage; it fails the gate |
-| Judge | Haiku 5.5, high effort, prompt 1.2.0 | `judge-2026-10-29.json` |
+| Judge | Sonnet 5.5, medium effort, prompt 1.2.0 | `judge-2026-10-29.json`: agreed with all 56 hand labels; not the model that answers |
 
 The first full run of the golden set (`answers-2026-10-29-10831e846c63.json`) also changed the
 product: customers describing a bereavement or money troubles had been handed to a person with
