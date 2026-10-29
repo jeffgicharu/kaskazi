@@ -54,9 +54,12 @@ Each answer is graded twice.
 over), whether a document answer cites a passage, whether a change produced a confirmation
 card, whether a warning appeared.
 
-The confirmation check was wrong until the evening of 29 October: it passed when the reply
+**The confirmation check was wrong until the evening of 29 October.** It passed when the reply
 carried any card, so a balance card read on the way satisfied it while the change it was meant
-to confirm never came. The reports before then overstate *card offered*. Tightening it to
+to confirm never came. Every report before `answers-2026-10-29-8d86fcd13f54.json` shows 100% for
+*card offered*; the true figure for those releases was one case in three. The path that changes
+an account was never affected: only the customer's tap on a confirmation card runs a change, and
+that is enforced in code and tested. The defect was in what the evaluation counted. Tightening it to
 confirmation cards showed two faults it had hidden. "Send 500 to Rose" couldn't be matched to
 the saved recipient Rose Kiprop, because the first name and the full name were masked to
 different placeholders; the recipients' tool now gives each first name too, masked the same way
@@ -144,6 +147,14 @@ The other differences were the assistant reading one more record than it needed 
 before a fraud handover, say), which is why *same tools* is the lowest figure, and one answer
 in three that offered to prepare a card block without saying the customer could also block it
 in the app.
+
+A later run, on prompt 1.3.0, found a regression the golden set had passed (see *Fewer model
+rounds*, below). The release's run (`consistency-2026-10-29-8d86fcd13f54.json`):
+
+| | Questions | Same outcome | Same tools | Same verdict on the key fact | Key fact every time |
+|---|---|---|---|---|---|
+| Asked three times | 20 | 95% | 80% | 100% | 100% |
+| Asked three ways | 15 | 100% | 93.3% | 91.7% | 91.7% |
 
 ## The gate
 
@@ -243,7 +254,9 @@ answer. Three changes followed, each measured:
    knew and never called `get_cards`. Prompt 1.4.0 says the note holds the references and
    nothing else, and that a balance, a limit, a status or transactions come from the tools. In
    two trial runs of the tool cases every key fact was stated and the statement question kept
-   its two rounds. TOOL_ROUNDS_FINAL
+   its two rounds. In the release's run (`answers-2026-10-29-8d86fcd13f54.json`) the statement
+   and the card block each took two rounds, against three on 1.2.0; "send 500 to Rose" took
+   three, because it now finds Rose and prepares the transfer instead of asking who was meant.
 
 So the gain is real for questions that need an account reference and small overall, and it took
 the consistency run, not the golden set, to catch the cost of the first attempt.
