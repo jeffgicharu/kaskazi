@@ -6,7 +6,7 @@ import { ApiError, api } from "../../api/client";
 import { DemoBanner, Wordmark } from "../../components/Brand";
 import { useEventStream } from "../../hooks/useEventStream";
 import { when } from "../../lib/format";
-import { EvaluationsView, MonitoringView, PromptsView } from "./LeadViews";
+import { EvaluationsView, FeedbackView, MonitoringView, PromptsView } from "./LeadViews";
 import { ReviewQueue } from "./ReviewViews";
 
 type Role = "agent" | "reviewer" | "ai_lead";
@@ -92,6 +92,7 @@ function Console({ role }: { role: Role }) {
 const LEAD_VIEWS = [
   { key: "audit", label: "Audit trail" },
   { key: "monitoring", label: "Monitoring" },
+  { key: "feedback", label: "Feedback" },
   { key: "evaluations", label: "Evaluations" },
   { key: "prompts", label: "Prompts" },
 ] as const;
@@ -110,7 +111,17 @@ function LeadConsole() {
           </button>
         ))}
       </nav>
-      {view === "monitoring" ? <MonitoringView /> : view === "evaluations" ? <EvaluationsView /> : view === "prompts" ? <PromptsView /> : <AuditTrail />}
+      {view === "monitoring" ? (
+        <MonitoringView />
+      ) : view === "feedback" ? (
+        <FeedbackView />
+      ) : view === "evaluations" ? (
+        <EvaluationsView />
+      ) : view === "prompts" ? (
+        <PromptsView />
+      ) : (
+        <AuditTrail />
+      )}
     </>
   );
 }

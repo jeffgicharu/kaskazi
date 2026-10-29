@@ -145,6 +145,10 @@ test("the AI lead's monitoring, evaluations and prompts load and pass axe", asyn
   await expect(page.getByText(/Router: \d+ labelled messages/)).toBeVisible();
   await noAxeViolations(page, "evaluations");
 
+  await views.getByRole("button", { name: "Feedback" }).click();
+  await expect(page.getByRole("heading", { name: "Feedback" })).toBeVisible();
+  await noAxeViolations(page, "feedback");
+
   await views.getByRole("button", { name: "Prompts" }).click();
   await expect(page.getByRole("heading", { name: "assistant.router" })).toBeVisible();
   await page.getByRole("button", { name: "Show the text" }).first().click();

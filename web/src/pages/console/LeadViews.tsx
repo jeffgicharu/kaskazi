@@ -667,3 +667,50 @@ export function PromptsView() {
     </div>
   );
 }
+
+// --- Feedback ------------------------------------------------------------------------------------
+
+type Ratings = { ratings: { rating: number; reason: string | null; comment: string | null; at: string; question: string; answer: string }[] };
+
+const REASONS: Record<string, string> = {
+  wrong: "Wrong",
+  unclear: "Unclear",
+  not_helpful: "Not helpful",
+  unsafe: "Unsafe",
+  other: "Other",
+  helpful: "Helpful",
+};
+
+export function FeedbackView() {
+  const data = useQuery({ queryKey: ["feedback"], queryFn: () => api.get<Ratings>("/api/console/feedback") });
+  if (data.isLoading) return <p className="muted">Reading the ratings…</p>;
+  if (data.isError || !data.data) return <p className="field-error" role="alert">The ratings didn't load.</p>;
+  const ratings = data.data.ratings;
+  return (
+    <div className="lead-view">
+      <div className="lead-head">
+        <h1 className="console-h1">Feedback</h1>
+        <p className="muted small">
+          Ratings on the assistant's answers in your copy, with the question each one answered. The monitoring view counts them across every visitor. A low rating is where the golden set grows next.
+        </p>
+      </div>
+      {ratings.length === 0 ? (
+        <p className="empty">No ratings yet. Rate an answer in the customer app with the thumbs under it.</p>
+      ) : (
+        <ol className="reports">
+          {ratings.map((r) => (
+            <li key={r.at} className="report">
+              <div className="report-head">
+                <span className={`chip ${r.rating > 0 ? "chip-ok" : "chip-danger"}`}>{r.rating > 0 ? "Helpful" : `Not helpful${r.reason && r.reason !== "not_helpful" ? `: ${REASONS[r.reason] ?? r.reason}` : ""}`}</span>
+                <span className="muted small">{when(r.at)}</span>
+              </div>
+              <p className="miss-q">{r.question || "(no question)"}</p>
+              <p className="miss-a">{r.answer}</p>
+              {r.comment ? <p className="muted small">“{r.comment}”</p> : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}

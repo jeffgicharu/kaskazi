@@ -669,3 +669,36 @@ async def decide_application(
         )
     except desk.DeskError as error:
         raise _desk_failure(error) from error
+
+
+@router.get("/feedback")
+async def feedback(s: Lead, svc: Svc) -> dict[str, Any]:
+    """The customer's ratings in this copy, each with the question and the answer it rates.
+    (Ratings across every visitor are on the monitoring view, as counts.)"""
+    async with visitor_tx(svc.pool, s.sandbox_id) as conn:
+        rows = await conn.fetch(
+            """SELECT f.rating, f.reason, f.comment, f.created_at, m.display AS answer,
+                      (SELECT c.display FROM app.messages c
+                        WHERE c.conversation_id = m.conversation_id AND c.author = 'customer'
+                          AND c.seq < m.seq ORDER BY c.seq DESC LIMIT 1) AS question
+               FROM app.feedback f JOIN app.messages m ON m.id = f.message_id
+               ORDER BY f.created_at DESC LIMIT 100"""
+        )
+
+    def text(display: Any) -> str:
+        d = json.loads(display) if isinstance(display, str) else (display or {})
+        return str(d.get("text", ""))
+
+    return {
+        "ratings": [
+            {
+                "rating": r["rating"],
+                "reason": r["reason"],
+                "comment": r["comment"],
+                "at": r["created_at"].isoformat(),
+                "question": text(r["question"]),
+                "answer": text(r["answer"])[:800],
+            }
+            for r in rows
+        ]
+    }
