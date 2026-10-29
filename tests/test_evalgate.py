@@ -97,6 +97,24 @@ def test_a_release_needs_a_passing_report_that_covers_it(tmp_path: Path) -> None
     }
     (reports / "answers-a.json").write_text(json.dumps(report))
     ok, why = check_release(root, reports)
+    assert not ok and "no document desk report covers" in why
+
+    read = {"want": "1", "got": "1", "right": True, "confidence": 0.95}
+    documents = {
+        "run_on": "2026-10-29T10:00:00+00:00",
+        "fingerprint": fingerprint(root),
+        "results": [
+            {"path": "text", "defects": [], "caught": {}, "fields": [read] * 5},
+            {
+                "path": "text",
+                "defects": ["net_mismatch"],
+                "caught": {"net_mismatch": True},
+                "fields": [read],
+            },
+        ],
+    }
+    (reports / "documents-a.json").write_text(json.dumps(documents))
+    ok, why = check_release(root, reports)
     assert ok, why
 
     # A summary edited by hand no longer matches the results it came from.

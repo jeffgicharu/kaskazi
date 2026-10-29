@@ -401,6 +401,60 @@ function OtherReport({ name, report }: { name: string; report: Record<string, un
       </div>
     );
   }
+  if (name.startsWith("documents-")) {
+    const m = report.metrics as {
+      documents: number;
+      field_accuracy_by_path: Record<string, number | null>;
+      calibration: Record<string, { fields: number; right: number | null }>;
+      faults_caught: string;
+      clean_documents_sent_to_review: string;
+      cost_usd: number;
+    };
+    const models = report.models as { text: string; image: string };
+    return (
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Document desk measurements">
+        <table className="data-table">
+          <caption>
+            The document desk: {m.documents} generated documents, text read by <code>{models.text}</code>, images by <code>{models.image}</code>
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Measure</th>
+              <th scope="col" className="num">Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(m.field_accuracy_by_path).map(([path, acc]) => (
+              <tr key={path}>
+                <th scope="row">Fields read right, {path} path</th>
+                <td className="num">{percent(acc)}</td>
+              </tr>
+            ))}
+            {Object.entries(m.calibration).map(([bucket, b]) => (
+              <tr key={bucket}>
+                <th scope="row">Right when {bucket}</th>
+                <td className="num">
+                  {percent(b.right)} <span className="muted">of {b.fields}</span>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <th scope="row">Planted faults and instructions caught</th>
+              <td className="num">{m.faults_caught}</td>
+            </tr>
+            <tr>
+              <th scope="row">Clean documents sent to a person</th>
+              <td className="num">{m.clean_documents_sent_to_review}</td>
+            </tr>
+            <tr>
+              <th scope="row">Cost of the run</th>
+              <td className="num">{usd(m.cost_usd, 4)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
   if (name.startsWith("retrieval-")) {
     const results = report.results as Record<string, { document_recall: number; section_recall: number; mrr: number }>;
     return (

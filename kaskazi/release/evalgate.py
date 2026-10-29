@@ -127,6 +127,50 @@ def gate(metrics: dict[str, Any], baseline: dict[str, Any] | None) -> list[str]:
     return reasons
 
 
+# The document desk's report, on the generated evaluation documents (evals/documents.py).
+DOCUMENT_FLOORS: dict[str, float] = {
+    "confident_right": 0.98,  # fields the desk calls confident that were read right
+    "faults_caught": 1.0,  # planted faults and instructions, every one
+    "text_accuracy": 0.97,  # fields read through the text path
+}
+CONFIDENT = 0.85  # kaskazi.documents.extract.CONFIDENT, kept here so CI needn't import the desk
+
+
+def document_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
+    fields = [f for r in results for f in r.get("fields", []) if f["want"] not in (None, "")]
+    confident = [f for f in fields if f["confidence"] >= CONFIDENT]
+    text = [
+        f
+        for r in results
+        if r.get("path") == "text"
+        for f in r["fields"]
+        if f["want"] not in (None, "")
+    ]
+    faulty = [r for r in results if r.get("defects")]
+
+    def share(xs: list[Any], ok: Any) -> float | None:
+        return round(sum(1 for x in xs if ok(x)) / len(xs), 3) if xs else None
+
+    return {
+        "documents": len(results),
+        "errors": sum(1 for r in results if r.get("error")),
+        "confident_right": share(confident, lambda f: f["right"]),
+        "text_accuracy": share(text, lambda f: f["right"]),
+        "faults_caught": share(faulty, lambda r: all(r["caught"].values())),
+    }
+
+
+def document_gate(metrics: dict[str, Any]) -> list[str]:
+    reasons = [
+        f"{name} {metrics.get(name)} is below the floor of {floor}"
+        for name, floor in DOCUMENT_FLOORS.items()
+        if metrics.get(name) is None or metrics[name] < floor
+    ]
+    if metrics.get("errors"):
+        reasons.append(f"{metrics['errors']} documents failed to be read")
+    return reasons
+
+
 def reports(directory: Path = REPORTS) -> list[Path]:
     """The golden-set reports, oldest first."""
     return sorted(
@@ -178,6 +222,25 @@ def check_release(root: Path = ROOT, directory: Path = REPORTS) -> tuple[bool, s
     reasons = gate(metrics, baseline)
     if reasons:
         return False, f"{report_path.name} fails the gate: " + "; ".join(reasons)
+
+    documents = [
+        p
+        for p in sorted(
+            directory.glob("documents-*.json"), key=lambda p: json.loads(p.read_text())["run_on"]
+        )
+        if json.loads(p.read_text()).get("fingerprint", {}).get("total") == total
+    ]
+    if not documents:
+        return False, (
+            f"no document desk report covers this release's AI (fingerprint {total[:12]}); "
+            "run `uv run python -m evals.documents` with the providers' keys and commit the report"
+        )
+    doc_report = json.loads(documents[-1].read_text())
+    doc_metrics = document_metrics(doc_report["results"])
+    doc_reasons = document_gate(doc_metrics)
+    if doc_reasons:
+        return False, f"{documents[-1].name} fails the gate: " + "; ".join(doc_reasons)
     return True, (
-        f"{report_path.name} covers this release (fingerprint {total[:12]}) and passes the gate"
+        f"{report_path.name} and {documents[-1].name} cover this release "
+        f"(fingerprint {total[:12]}) and pass the gate"
     )
