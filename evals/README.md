@@ -11,6 +11,7 @@ that chose it. The staff console shows them all under **AI lead → Evaluations*
 | Retrieval | the golden set's 98 document questions, 8 of them staff questions | `python -m evals.retrieval` | free (cached vectors) |
 | The judge | `judge/calibration.jsonl`, 56 hand-labelled criteria | `python -m evals.judge_calibration measure` | about $0.06 |
 | The document desk | 34 generated documents | `python -m evals.documents` | about $0.02 |
+| Consistency | 20 golden questions asked three times; 15 asked in three wordings | `python -m evals.consistency` | about $0.40 |
 
 Run them with `uv run` from the repository root, against the local stack with the real models
 (`KASKAZI_DEV_REAL=1 scripts/dev.sh`).
@@ -109,6 +110,28 @@ Haiku reads them (`documents-2026-10-29-variant-image-claude-sonnet-5-5.json`).
 The documents are generated and clean by the standard of real ones, so these figures are an
 upper bound: a bank would calibrate on its own documents, starting from the reviewers'
 corrections, which the desk keeps as labelled data.
+
+## Consistency
+
+A customer who asks the same thing twice should get the same answer, and so should one who
+asks it in other words. `python -m evals.consistency` measures both, in fresh conversations:
+
+- **repeats:** 20 golden questions (documents, tools, refusals, an injection attempt, fraud),
+  each asked three times exactly as written;
+- **rephrasings:** 15 golden questions, each asked as written and in two other wordings
+  (`golden/paraphrases.jsonl`): one plainer and fuller, one short and misspelt, the way people
+  type on a phone.
+
+For each group of three asks it compares the outcome (answered, refused, handed over), the tools
+the assistant called, and the golden-set judge's verdict on the case's key fact.
+
+The first run (`consistency-2026-10-29-8d8adb40c900.json`) found a defect: a customer who wrote
+"send them 80k" got the safe answer once in three, because the figures check didn't read "80k"
+as KES 80,000 and treated the answer's figure as invented. The check now reads the shorthand.
+The other differences were the assistant reading one more record than it needed (the accounts
+before a fraud handover, say), which is why *same tools* is the lowest figure, and one answer
+in three that offered to prepare a card block without saying the customer could also block it
+in the app.
 
 ## The gate
 

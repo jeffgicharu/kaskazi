@@ -512,6 +512,57 @@ function OtherReport({ name, report }: { name: string; report: Record<string, un
       </div>
     );
   }
+  if (name.startsWith("consistency-")) {
+    type Agreement = { groups: number; same_outcome: number | null; same_tools: number | null; same_key_fact_verdict: number | null; key_fact_met_every_time: number | null; differing: string[] };
+    const m = report.metrics as { repeats: Agreement; rephrasings: Agreement };
+    const rows: [string, Agreement][] = [
+      ["The same question, three times", m.repeats],
+      ["As written and two other ways", m.rephrasings],
+    ];
+    return (
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Consistency measurements">
+        <table className="data-table">
+          <caption>Consistency: each question asked three times, in fresh conversations</caption>
+          <thead>
+            <tr>
+              <th scope="col">Asked</th>
+              <th scope="col" className="num">Questions</th>
+              <th scope="col" className="num">Same outcome</th>
+              <th scope="col" className="num">Same tools</th>
+              <th scope="col" className="num">Same verdict on the key fact</th>
+              <th scope="col" className="num">Key fact every time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, a]) => (
+              <tr key={label}>
+                <th scope="row">{label}</th>
+                <td className="num">{a.groups}</td>
+                <td className="num">{percent(a.same_outcome)}</td>
+                <td className="num">{percent(a.same_tools)}</td>
+                <td className="num">{percent(a.same_key_fact_verdict)}</td>
+                <td className="num">{percent(a.key_fact_met_every_time)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.some(([, a]) => a.differing.length) ? (
+          <p className="muted small">
+            Differed at least once:{" "}
+            {rows
+              .flatMap(([, a]) => a.differing)
+              .filter((id, i, all) => all.indexOf(id) === i)
+              .map((id, i) => (
+                <span key={id}>
+                  {i ? ", " : ""}
+                  <code>{id}</code>
+                </span>
+              ))}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
   if (name.startsWith("retrieval-")) {
     const results = report.results as Record<string, { document_recall: number; section_recall: number; mrr: number }>;
     return (
