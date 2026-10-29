@@ -114,6 +114,8 @@ TOOL_LABELS = {
     "look_up_fee": "Looking up the tariff",
     "get_recipients": "Checking your saved recipients",
     "get_complaints": "Checking your complaints",
+    "suggest_products": "Looking at what would suit you",
+    "get_application_status": "Checking your loan application",
 }
 
 Progress = Callable[[str, str], Awaitable[None]]

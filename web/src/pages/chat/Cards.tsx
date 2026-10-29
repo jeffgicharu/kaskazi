@@ -5,6 +5,14 @@ import { ApiError, api } from "../../api/client";
 import type { Card, ConfirmCard } from "../../api/types";
 import { money, shortDate, time } from "../../lib/format";
 
+const APPLICATION_STATUS: Record<string, string> = {
+  documents_requested: "Waiting for your documents",
+  under_review: "With a colleague for a decision",
+  approved: "Approved and paid out",
+  declined: "Not approved",
+  withdrawn: "Withdrawn",
+};
+
 export function CardView({ card, conversationId }: { card: Card; conversationId: string }) {
   switch (card.type) {
     case "confirm":
@@ -88,6 +96,44 @@ export function CardView({ card, conversationId }: { card: Card; conversationId:
             </ul>
           )}
           <p className="slip-note">Indicative only. A person decides every loan.</p>
+        </div>
+      );
+    case "suggestions":
+      if (card.suggestions.length === 0) return null;
+      return (
+        <div className="slip slip--plain">
+          <p className="slip-kicker">Suggested for you</p>
+          <ul className="suggestions-list">
+            {card.suggestions.map((s) => (
+              <li key={s.rule}>
+                <p className="suggestion-title">{s.title}</p>
+                <p className="muted small">
+                  {s.product} · about {money(s.benefit_kes_a_year)} more a year, before tax
+                </p>
+                <details className="why">
+                  <summary>Why am I seeing this?</summary>
+                  <p>{s.why}</p>
+                  <p className="muted small">Worked out by the bank's rules from your own accounts. Kaskazi never suggests borrowing.</p>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    case "application":
+      return (
+        <div className="slip slip--plain">
+          <p className="slip-kicker">
+            Your loan application · {money(card.amount)} over {card.term_months} months
+          </p>
+          <dl className="ledger">
+            <Row label="Where it stands" value={APPLICATION_STATUS[card.status] ?? card.status} strong />
+            {card.documents.map((d) => (
+              <Row key={d.kind} label={d.kind === "id" ? "Identity card" : d.kind === "payslip" ? "Payslip" : "Bank statement"} value={d.status.replaceAll("_", " ")} />
+            ))}
+            <Row label="Started" value={shortDate(card.started)} />
+          </dl>
+          {card.decision_reason ? <p className="slip-note">{card.decision_reason}</p> : null}
         </div>
       );
     default:

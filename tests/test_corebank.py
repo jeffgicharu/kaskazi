@@ -206,3 +206,34 @@ async def test_eligibility_uses_the_customers_own_figures(
     assert what_if["room_for_new_instalment"] == 17_000
     assert what_if["largest_loan_by_term"]["36"] == 486_971
     assert what_if["largest_loan_by_term"]["60"] == 706_787
+
+
+async def test_suggestions_come_from_rules_on_the_customers_own_accounts(
+    app_pool: asyncpg.Pool, bank: CoreBank
+) -> None:
+    found = {}
+    for persona in PERSONAS:
+        sandbox, customer = await new_copy(app_pool, persona)
+        found[persona] = await bank.call(
+            "GET", "/v1/suggestions", sandbox_id=sandbox, customer_id=customer
+        )
+    # Amina's Goal Saver holds 128,500 untouched: a 12-month deposit pays 9.5% against 5.0%.
+    (fd,) = found["teacher"]
+    assert fd["rule"] == "idle_savings" and fd["product"] == "Kaskazi Fixed Deposit"
+    assert fd["benefit_kes_a_year"] == 5_783  # 4.5% of 128,500, before tax
+    assert "128,500" in fd["why"]
+    # Faith's student account is too small to suggest anything.
+    assert found["student"] == []
+    # Nothing that lends is ever suggested.
+    products = {s["product"] for each in found.values() for s in each}
+    assert products <= {"Kaskazi Fixed Deposit", "Kaskazi Goal Saver"}
+
+
+async def test_application_status_reads_the_latest_application(
+    app_pool: asyncpg.Pool, bank: CoreBank
+) -> None:
+    sandbox, customer = await new_copy(app_pool)
+    none = await bank.call(
+        "GET", "/v1/loans/applications/latest", sandbox_id=sandbox, customer_id=customer
+    )
+    assert none == {"application": None}

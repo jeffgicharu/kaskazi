@@ -63,6 +63,16 @@ export type Card =
       affordability_limit: number;
       room_for_new_instalment: number;
       largest_loan_by_term: Record<string, number>;
+    }
+  | { type: "suggestions"; suggestions: { rule: string; product: string; title: string; why: string; benefit_kes_a_year: number }[] }
+  | {
+      type: "application";
+      amount: number;
+      term_months: number;
+      status: "documents_requested" | "under_review" | "approved" | "declined" | "withdrawn";
+      documents: { kind: string; status: string }[];
+      decision_reason: string | null;
+      started: string;
     };
 
 export type AssistantDisplay = {

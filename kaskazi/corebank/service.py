@@ -10,6 +10,7 @@ idempotency key, so a retried confirmation never moves money twice.
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -309,6 +310,66 @@ def create_app(pool: asyncpg.Pool) -> FastAPI:
                 ctx.customer_id,
             )
         return [_plain(dict(r)) for r in rows]
+
+    @app.get("/v1/suggestions")
+    async def suggestions(ctx: Ctx) -> list[dict[str, Any]]:
+        """Products that would suit the customer, by rules on their own accounts. Never credit."""
+        async with tx(ctx) as conn:
+            accounts = await conn.fetch(
+                "SELECT id, product, balance FROM corebank.accounts WHERE customer_id = $1 AND status = 'active'",
+                ctx.customer_id,
+            )
+            rows = await conn.fetch(
+                "SELECT account_id, at, amount FROM corebank.transactions WHERE account_id = ANY($1::uuid[]) "
+                "AND at >= now() - interval '60 days'",
+                [a["id"] for a in accounts],
+            )
+        history: dict[str, list[tuple[date, Decimal]]] = {}
+        for r in rows:
+            history.setdefault(str(r["account_id"]), []).append(
+                (r["at"].date(), Decimal(r["amount"]))
+            )
+        found = rules.suggestions(
+            [
+                {"id": str(a["id"]), "product": a["product"], "balance": a["balance"]}
+                for a in accounts
+            ],
+            history,
+            datetime.now(UTC).date(),
+        )
+        return [f.as_dict() for f in found]
+
+    @app.get("/v1/loans/applications/latest")
+    async def latest_application(ctx: Ctx) -> dict[str, Any]:
+        """The customer's latest loan application and where it stands, for the assistant."""
+        async with tx(ctx) as conn:
+            row = await conn.fetchrow(
+                "SELECT id, amount, term_months, status, decision, created_at, updated_at "
+                "FROM app.loan_applications WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 1",
+                ctx.customer_id,
+            )
+            if row is None:
+                return {"application": None}
+            docs = await conn.fetch(
+                "SELECT kind, status FROM app.documents WHERE application_id = $1 AND status <> 'rejected' "
+                "ORDER BY created_at",
+                row["id"],
+            )
+        decision = (
+            json.loads(row["decision"]) if isinstance(row["decision"], str) else row["decision"]
+        )
+        return {
+            "application": {
+                "amount": row["amount"],
+                "term_months": row["term_months"],
+                "status": row["status"],
+                "documents": [{"kind": d["kind"], "status": d["status"]} for d in docs],
+                "decision_reason": (decision or {}).get("reason") or None,
+                "paid_out": (decision or {}).get("paid_out"),
+                "started": row["created_at"].date().isoformat(),
+                "last_change": row["updated_at"].date().isoformat(),
+            }
+        }
 
     @app.post("/v1/loans/personal/disburse")
     async def disburse(ctx: Ctx, body: Disbursal) -> dict[str, Any]:

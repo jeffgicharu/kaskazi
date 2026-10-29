@@ -140,6 +140,23 @@ TOOLS: list[ToolDef] = [
         "read",
     ),
     ToolDef(
+        "suggest_products",
+        "Kaskazi savings products that would suit the customer, worked out by the bank's rules from their "
+        "own accounts and transactions. Each comes with the rule that fired and its figures, which the "
+        "customer is shown as 'why am I seeing this'. It never suggests credit. Use it when the customer "
+        "asks how to earn more, what would suit them, or what to do with money they aren't using.",
+        _schema({}),
+        "read",
+    ),
+    ToolDef(
+        "get_application_status",
+        "The customer's latest Kaskazi Personal Loan application: its amount and term, where it stands "
+        "(waiting for documents, with a reviewer, approved, declined), the documents given and their "
+        "state, and the reviewer's reason if one was given.",
+        _schema({}),
+        "read",
+    ),
+    ToolDef(
         "get_salary_advance_limit",
         "The most the customer can take as a Kaskazi Salary Advance and why (half of net pay, the cap, or "
         "the one-third rule), with the fee on that amount.",

@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import tomllib
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from functools import cache
 from pathlib import Path
@@ -327,3 +327,86 @@ def fee(service: str, amount: float | None = None) -> dict[str, Any]:
     if service not in flat:
         raise ValueError(f"unknown service {service}")
     return {"service": service, "fee": flat[service]}
+
+
+# --- Product suggestions --------------------------------------------------------------------------
+#
+# Rules on the customer's own accounts, each naming what fired and the figures behind it, so the
+# customer can see why. Credit (loans, cards, advances) is never suggested: lending starts with
+# the customer, not with the bank.
+
+
+@dataclass(frozen=True)
+class Suggestion:
+    rule: str
+    product: str
+    title: str
+    why: str
+    benefit_kes_a_year: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def suggestions(
+    accounts: list[dict[str, Any]],
+    history: dict[str, list[tuple[date, Decimal]]],
+    today: date,
+) -> list[Suggestion]:
+    """What would suit the customer, from their accounts and the last 60 days of each one's
+    transactions (date, amount: negative out, positive in)."""
+    b = bank()["accounts"]
+    gs, fd = b["goal_saver"], b["fixed_deposit"]
+    found: list[Suggestion] = []
+    savers = [a for a in accounts if a["product"] == gs["name"]]
+    for saver in savers:
+        balance = Decimal(str(saver["balance"]))
+        quiet_since = today - timedelta(days=60)
+        withdrawn = any(
+            amt < 0 and when >= quiet_since for when, amt in history.get(saver["id"], [])
+        )
+        if balance >= fd["minimum_deposit"] and not withdrawn:
+            gain = balance * Decimal(str(fd["rate_12_months"] - gs["interest_rate_high"])) / 100
+            found.append(
+                Suggestion(
+                    rule="idle_savings",
+                    product=fd["name"],
+                    title=f"Fix your savings for 12 months at {fd['rate_12_months']}%",
+                    why=(
+                        f"Your {gs['name']} holds KES {balance:,.0f} and nothing has been taken out "
+                        f"for 60 days. A {fd['name']} of 12 months pays {fd['rate_12_months']}% a "
+                        f"year, against {gs['interest_rate_high']}% now, if you won't need it before "
+                        "then."
+                    ),
+                    benefit_kes_a_year=shillings(gain),
+                )
+            )
+    if not savers:
+        for account in accounts:
+            if account["product"] not in (b["everyday"]["name"], b["student"]["name"]):
+                continue
+            balance = Decimal(str(account["balance"]))
+            low = balance
+            recent = [
+                t for t in history.get(account["id"], []) if t[0] >= today - timedelta(days=30)
+            ]
+            for _, amt in sorted(recent, key=lambda t: t[0], reverse=True):
+                balance -= amt  # walk back through the last 30 days' balances
+                low = min(low, balance)
+            if low >= gs["interest_threshold"]:
+                gain = low * Decimal(str(gs["interest_rate_high"])) / 100
+                found.append(
+                    Suggestion(
+                        rule="unused_balance",
+                        product=gs["name"],
+                        title=f"Earn {gs['interest_rate_high']}% on money you aren't using",
+                        why=(
+                            f"Your {account['product']} never fell below KES {low:,.0f} in the last "
+                            f"30 days, and it pays no interest. In a {gs['name']} that amount would "
+                            f"earn {gs['interest_rate_high']}% a year, and one withdrawal a month is "
+                            "free."
+                        ),
+                        benefit_kes_a_year=shillings(gain),
+                    )
+                )
+    return found

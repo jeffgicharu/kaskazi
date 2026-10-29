@@ -168,6 +168,33 @@ class Executor:
         )
         return ToolOutcome({"quote": quote}, display={"type": "quote", **quote})
 
+    async def _suggest_products(self) -> ToolOutcome:
+        found = await self._call("GET", "/v1/suggestions")
+        content: dict[str, Any] = {
+            "suggestions": found,
+            "note": "Suggested by the bank's rules from the customer's own accounts; never credit.",
+        }
+        if not found:
+            content["note"] = "Nothing to suggest from the bank's rules at the moment."
+            return ToolOutcome(content)
+        return ToolOutcome(content, display={"type": "suggestions", "suggestions": found})
+
+    async def _get_application_status(self) -> ToolOutcome:
+        result = await self._call("GET", "/v1/loans/applications/latest")
+        application = result.get("application")
+        if application is None:
+            return ToolOutcome(
+                {
+                    "application": None,
+                    "note": "The customer has no loan application. Every application, whether "
+                    "started online or at a branch, is recorded here as soon as it starts, so "
+                    "there is nothing further to look up.",
+                }
+            )
+        return ToolOutcome(
+            {"application": application}, display={"type": "application", **application}
+        )
+
     async def _get_salary_advance_limit(self) -> ToolOutcome:
         return ToolOutcome(
             {"salary_advance": await self._call("POST", "/v1/loans/salary-advance/limit")}

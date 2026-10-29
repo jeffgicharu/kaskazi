@@ -6,7 +6,7 @@ that chose it. The staff console shows them all under **AI lead → Evaluations*
 
 | What | Set | Command | Cost a run |
 |---|---|---|---|
-| The whole assistant, end to end | `golden/questions.jsonl`, 127 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
+| The whole assistant, end to end | `golden/questions.jsonl`, 130 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
 | The router | `router_cases.jsonl`, 49 messages | `python -m evals.router` | about $0.06 |
 | Retrieval | the golden set's 98 document questions, 8 of them staff questions | `python -m evals.retrieval` | free (cached vectors) |
 | The judge | `judge/calibration.jsonl`, 56 hand-labelled criteria | `python -m evals.judge_calibration measure` | about $0.06 |
@@ -17,7 +17,7 @@ Run them with `uv run` from the repository root, against the local stack with th
 
 ## The golden set
 
-127 cases, each asked as one of the three sample customers in a fresh conversation:
+130 cases, each asked as one of the three sample customers in a fresh conversation:
 
 - **90 answerable questions** about the bank's products, fees and rules, written in the way
   customers write: short, misspelt, in English, Swahili and a mix of the two. Each has the
@@ -25,8 +25,10 @@ Run them with `uv run` from the repository root, against the local stack with th
   the question turns on; the rest are details a thorough answer would add.
 - **11 the documents can't answer** (mortgages, treasury bonds, phone wallets). The criteria are
   behaviour: say so, invent nothing, offer a person.
-- **10 that need the bank's records** through the tools: balances, a loan worked out from the
-  customer's own figures, and three changes that must wait for the customer's confirmation.
+- **13 that need the bank's records** through the tools: balances, a loan worked out from the
+  customer's own figures, a product suggestion (and a customer with nothing to suggest), the
+  state of a loan application, and three changes that must wait for the customer's
+  confirmation.
 - **13 about behaviour**: off-topic requests, injection attempts in English, Swahili and fake
   markup, fraud, bereavement, money troubles, asking for a person, a PIN or card number typed
   into the chat, and a greeting.

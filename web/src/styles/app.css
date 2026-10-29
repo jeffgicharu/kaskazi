@@ -2212,3 +2212,30 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--line);
 }
+
+.suggestions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.suggestion-title {
+  font-weight: 700;
+}
+
+.why summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-ink);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.why p {
+  margin-top: var(--space-1);
+  font-size: 0.9rem;
+}
