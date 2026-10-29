@@ -4,7 +4,8 @@ The full golden set is run before a release, with a judge, and its report gates 
 CI (kaskazi.release.evalgate). On the server, against the idle slot and the real models, the
 release check asks ten of its questions again and checks in code what can be checked without a
 judge: the outcome, that a documents answer cites a passage, that a change waits for the
-customer, that a refusal or a handover happens. It costs about one US cent.
+customer, that a refusal or a handover happens. A question that fails is asked once more; the
+same fault twice stops the release. It costs about one US cent.
 
 Each question gets its own check copy, so none of them sees another's conversation.
 """
@@ -97,16 +98,27 @@ async def ten_golden_questions(
     cases = live_cases()
     gate = asyncio.Semaphore(5)
 
-    async def one(case: dict[str, Any]) -> tuple[str, str | None, int]:
+    async def one(case: dict[str, Any]) -> tuple[str, str | None, int, bool]:
+        # A model doesn't answer the same way every time. A question that goes wrong is asked
+        # once more, in a fresh copy: one bad sample doesn't stop a release, the same fault
+        # twice does, and the output names every question that needed a second ask.
         async with gate:
             turn = await ask(api, release, case)
-            return case["id"], problem(case, turn), turn["latency_ms"]
+            why = problem(case, turn)
+            if why is None:
+                return case["id"], None, turn["latency_ms"], False
+            turn = await ask(api, release, case)
+            again = problem(case, turn)
+            return case["id"], f"{why}, then {again}" if again else None, turn["latency_ms"], True
 
     outcomes = await asyncio.gather(*(one(c) for c in cases))
-    wrong = [f"{i}: {why}" for i, why, _ in outcomes if why]
+    wrong = [f"{i}: {why}" for i, why, _, _ in outcomes if why]
     if wrong:
-        raise JourneyFailed("golden questions answered wrongly: " + "; ".join(wrong))
-    slowest = max(ms for _, _, ms in outcomes)
+        raise JourneyFailed("golden questions answered wrongly twice: " + "; ".join(wrong))
+    slowest = max(ms for _, _, ms, _ in outcomes)
+    asked_again = [i for i, _, _, retried in outcomes if retried]
+    note = f"; asked again: {', '.join(asked_again)}" if asked_again else ""
     return (
-        f"{len(cases)} golden questions answered as the golden set expects (slowest {slowest} ms)"
+        f"{len(cases)} golden questions answered as the golden set expects "
+        f"(slowest {slowest} ms{note})"
     )

@@ -112,7 +112,9 @@ change to a prompt needs one.
 
 Then, at every activation, the server asks ten of the golden questions again through the new
 release before visitors reach it (`kaskazi.release.golden`), and checks in code what can be
-checked without a judge.
+checked without a judge. A model doesn't answer the same way every time, so a question that goes
+wrong is asked once more in a fresh copy; the same fault twice stops the release, and the check
+names every question that needed a second ask.
 
 ## Measuring a variant
 
