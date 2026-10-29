@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useOnScreen } from "../../hooks/useOnScreen";
 import { useMonsoon } from "../../lib/useMonsoon";
 
 // The stage behind the landing page's headline: the kaskazi blowing in from the north-east over a
@@ -65,19 +66,26 @@ function streaks(count: number) {
 /** A dhow under its lateen sail, close inshore: the wind's destination, and the brand's mark. */
 function Dhow() {
   return (
-    <svg className="dhow-boat" viewBox="-50 -90 200 120" aria-hidden="true" focusable="false">
-      <g className="dhow-body">
-        <path className="dhow-mast" d="M30 -2 L30 -78" />
-        <path className="dhow-sail" d="M30 -80 C 58 -62 78 -34 84 -6 C 64 -12 44 -12 22 -8 Z" />
-        <path className="dhow-hull" d="M-6 -4 C 18 2 70 2 100 -10 C 92 6 78 12 60 12 L 10 12 C 2 12 -4 4 -6 -4 Z" />
-      </g>
-      <path className="dhow-wake" d="M-46 18 C -16 14 14 20 44 18 S 104 14 146 18" />
-    </svg>
+    // The voyage and the swell are on plain boxes around the drawing, where the browser can run them
+    // on the compositor; animating the <svg> element itself made it redraw every frame.
+    <div className="dhow-boat" aria-hidden="true">
+      <div className="dhow-swell">
+        <svg viewBox="-50 -90 200 120" focusable="false">
+          <path className="dhow-mast" d="M30 -2 L30 -78" />
+          <path className="dhow-sail" d="M30 -80 C 58 -62 78 -34 84 -6 C 64 -12 44 -12 22 -8 Z" />
+          <path className="dhow-hull" d="M-6 -4 C 18 2 70 2 100 -10 C 92 6 78 12 60 12 L 10 12 C 2 12 -4 4 -6 -4 Z" />
+          <path className="dhow-wake" d="M-46 18 C -16 14 14 20 44 18 S 104 14 146 18" />
+        </svg>
+      </div>
+    </div>
   );
 }
 
 export function WindStage() {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  // The dhow stops sailing while the hero is scrolled away (the wind pauses itself).
+  const onScreen = useOnScreen(stage);
   const [drawn, setDrawn] = useState(false);
   const lines = useMemo(() => (drawn ? streaks(90) : []), [drawn]);
   // The wind parts around the deck of cards beside the headline.
@@ -91,7 +99,7 @@ export function WindStage() {
 
   return (
     <>
-      <div className="wind-stage" data-live={live ? "yes" : "no"} aria-hidden="true">
+      <div ref={stage} className="wind-stage" data-live={live ? "yes" : "no"} data-away={onScreen ? undefined : "yes"} aria-hidden="true">
         <svg className="wind-still" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" focusable="false">
           <defs>
             {["ink", "accent", "saffron"].map((tone) => (

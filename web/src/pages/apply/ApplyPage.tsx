@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, Navigate } from "react-router";
 
 import { ApiError, api } from "../../api/client";
 import type { DeskDocument, DocKind, LoanApplication, LoanQuote, SampleDocument, Session } from "../../api/types";
 import { Wordmark } from "../../components/Brand";
 import { Breeze } from "../../components/Breeze";
+import { useOnScreen } from "../../hooks/useOnScreen";
 import { money } from "../../lib/format";
 import { DocChecks, DocFields, DocStatus } from "./DocumentParts";
 
@@ -45,6 +46,9 @@ function Apply({ firstName }: { firstName: string }) {
   const current = useQuery({ queryKey: ["application"], queryFn: () => api.get<LoanApplication | null>("/api/applications/current") });
   const open = current.data && current.data.status !== "withdrawn" ? current.data : null;
   const startNew = !open || open.status === "approved" || open.status === "declined";
+  // The papers in the header stop floating once the header is scrolled away.
+  const intro = useRef<HTMLDivElement>(null);
+  const introSeen = useOnScreen(intro);
 
   return (
     <div className="app-shell">
@@ -64,7 +68,7 @@ function Apply({ firstName }: { firstName: string }) {
         </header>
       </div>
       <main id="main" className="apply">
-        <div className="apply-intro">
+        <div ref={intro} className="apply-intro" data-away={introSeen ? undefined : "yes"}>
           <Breeze />
           <Papers />
           <p className="eyebrow">Kaskazi Personal Loan</p>

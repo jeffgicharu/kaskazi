@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 
 import { prefersStill } from "../../lib/motion";
 
-// A deck of cards beside the landing page's headline, each one part of Kaskazi at work: a question
-// answered with its source, a change confirmed, a payslip read, a fraud report handed to a person,
+// A deck of cards beside the landing page's headline, each one part of Kaskazi at work: a short
+// conversation with the assistant, answered from the bank's documents, a change confirmed, a payslip read, a fraud report handed to a person,
 // the release measured, the turn written to the audit trail. The front card plays its steps
 // quickly, then the next comes forward; it runs continuously while it can be seen, with a pause
 // button (anything that moves by itself for more than five seconds needs one). Visitors who prefer
@@ -14,7 +14,13 @@ type Scene = { key: string; label: string; summary: string; beats: number[]; len
 
 // Each scene's steps, in ms from when its card comes forward, and how long the card stays.
 const SCENES: Scene[] = [
-  { key: "ask", label: "Ask", summary: "Answers come from the bank's own documents, with the source, and personal details are hidden before any model sees them.", beats: [250, 850, 1350, 1800], length: 4300 },
+  {
+    key: "ask",
+    label: "Ask",
+    summary: "Answers come from the bank's own documents, with the source, and personal details are hidden before any model sees them.",
+    beats: [200, 600, 1250, 2450, 2950, 3350, 4000, 5300, 5700, 6350],
+    length: 8600,
+  },
   { key: "confirm", label: "Confirm", summary: "Nothing changes an account until the customer taps to confirm.", beats: [250, 1050, 1400, 1950], length: 4000 },
   { key: "read", label: "Read", summary: "The document desk reads payslips, IDs and statements, rates each field, and checks them against the statutory rates.", beats: [250, 550, 850, 1250, 1700], length: 4200 },
   { key: "handover", label: "Hand over", summary: "Fraud, bereavement and money troubles go to a person, with a summary.", beats: [250, 900, 1550, 2150], length: 4300 },
@@ -22,41 +28,96 @@ const SCENES: Scene[] = [
   { key: "audit", label: "Audit", summary: "Every turn is written to an append-only audit trail.", beats: [200, 420, 640, 860, 1080, 1550], length: 4000 },
 ];
 
+/**
+ * A conversation longer than its card: every message is laid out from the start, and the thread
+ * slides up (a transform, so nothing on the page moves) to keep the latest in view, like a chat.
+ * It measures after the browser has painted, when the layout is already worked out, and not at all
+ * before the first message, so it never adds layout work to the page's first render.
+ */
+function Chat({ step, children }: { step: number; children: ReactNode }) {
+  const thread = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = thread.current;
+    const view = el?.parentElement;
+    if (!el || !view) return;
+    const shown = [...el.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.classList.contains("is-on"));
+    const last = shown[shown.length - 1];
+    const messages = [...el.children].filter((c): c is HTMLElement => c instanceof HTMLElement);
+    if (!last) {
+      el.style.transform = "";
+      messages.forEach((c) => c.removeAttribute("data-past"));
+      return;
+    }
+    const shift = Math.max(0, last.offsetTop + last.offsetHeight - view.clientHeight);
+    el.style.transform = `translateY(${-shift}px)`;
+    // Messages that have gone up past the top of the window fade away, rather than sit half cut off.
+    messages.forEach((c) => c.toggleAttribute("data-past", c.offsetTop < shift));
+  }, [step]);
+  return (
+    <div className="deck-chat">
+      <div ref={thread} className="deck-thread">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** The assistant's reply: typing dots from step `typing`, the answer replacing them at `answer`. */
+function Reply({ on, typing, answer, children }: { on: (n: number) => string; typing: number; answer: number; children: ReactNode }) {
+  return (
+    <div className={`deck-bubble deck-bubble--assistant${on(typing)}${on(answer) ? " is-answered" : ""}`}>
+      <span className="deck-dots">
+        <span />
+        <span />
+        <span />
+      </span>
+      <span className="deck-answer">{children}</span>
+    </div>
+  );
+}
+
 /** A card's contents; `on(n)` is " is-on" once the card has reached its nth step. */
-function SceneBody({ scene, on }: { scene: string; on: (n: number) => string }): ReactNode {
+function SceneBody({ scene, step, on }: { scene: string; step: number; on: (n: number) => string }): ReactNode {
   switch (scene) {
     case "ask":
       return (
         <>
           <p className="deck-kicker">Customer assistant</p>
-          <div className={`deck-bubble deck-bubble--customer${on(1)}`}>
-            Send 80k to{" "}
-            <span className={`deck-pii${on(2)}`}>
-              <span className="deck-pii-raw">Rose Kiprop</span>
-              <span className="deck-pii-token">[NAME_1]</span>
-            </span>{" "}
-            on{" "}
-            <span className={`deck-pii${on(2)}`}>
-              <span className="deck-pii-raw">0712 345 678</span>
-              <span className="deck-pii-token">[PHONE_1]</span>
-            </span>
-            <span className={`deck-scan${on(2)}`} />
-          </div>
-          <p className={`deck-note${on(2)}`}>Hidden before any model sees it</p>
-          <div className={`deck-bubble deck-bubble--assistant${on(3)}${on(4) ? " is-answered" : ""}`}>
-            <span className="deck-dots">
-              <span />
-              <span />
-              <span />
-            </span>
-            <span className="deck-answer">
-              Rose is a new recipient, so today you can send up to KES 50,000<span className="deck-cite">1</span>. The rest
-              can go tomorrow.
-            </span>
-          </div>
-          <p className={`deck-source${on(4)}`}>
-            <span className="deck-cite">1</span> Transfers and payments · New recipients
-          </p>
+          <Chat step={step}>
+            <div className={`deck-bubble deck-bubble--customer${on(1)}`}>Can I send money to a mobile money number from here?</div>
+            <Reply on={on} typing={2} answer={3}>
+              Yes, to any mobile money wallet in Kenya. It usually arrives within moments<span className="deck-cite">1</span>.
+            </Reply>
+            <p className={`deck-source${on(3)}`}>
+              <span className="deck-cite">1</span> Transfers and payments · Mobile money transfers
+            </p>
+            <div className={`deck-bubble deck-bubble--customer${on(4)}`}>
+              Send 80k to{" "}
+              <span className={`deck-pii${on(5)}`}>
+                <span className="deck-pii-raw">Rose Kiprop</span>
+                <span className="deck-pii-token">[NAME_1]</span>
+              </span>{" "}
+              on{" "}
+              <span className={`deck-pii${on(5)}`}>
+                <span className="deck-pii-raw">0700 926 613</span>
+                <span className="deck-pii-token">[PHONE_1]</span>
+              </span>
+              <span className={`deck-scan${on(5)}`} />
+            </div>
+            <p className={`deck-note${on(5)}`}>Hidden before any model sees it</p>
+            <Reply on={on} typing={6} answer={7}>
+              Rose is a new recipient, so today you can send up to KES 50,000<span className="deck-cite">2</span>. The rest can
+              go tomorrow.
+            </Reply>
+            <p className={`deck-source${on(7)}`}>
+              <span className="deck-cite">2</span> Transfers and payments · New recipients
+            </p>
+            <div className={`deck-bubble deck-bubble--customer${on(8)}`}>OK, send 50k now then</div>
+            <Reply on={on} typing={9} answer={10}>
+              Sending KES 50,000 costs KES 55<span className="deck-cite">1</span>. I've prepared it: check the details and tap
+              Confirm.
+            </Reply>
+          </Chat>
         </>
       );
     case "confirm":
@@ -264,8 +325,8 @@ export function Showcase() {
           const on = (n: number) => (i === scene && beat >= n ? " is-on" : "");
           return (
             <div key={s.key} className={`deck-card deck-card--${place}`}>
-              <div className="deck-body">
-                <SceneBody scene={s.key} on={on} />
+              <div className={`deck-body deck-body--${s.key}`}>
+                <SceneBody scene={s.key} step={i === scene ? beat : 0} on={on} />
               </div>
             </div>
           );
