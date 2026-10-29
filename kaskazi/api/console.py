@@ -395,7 +395,10 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
         feedback = await conn.fetch("SELECT * FROM app.site_feedback_stats($1)", since)
         calls = await conn.fetch(
             """SELECT route, provider, model, count(*) AS calls,
-                      count(*) FILTER (WHERE outcome <> 'ok') AS failures,
+                      count(*) FILTER (WHERE outcome <> 'ok'
+                                       AND error_kind IS DISTINCT FROM 'simulated_outage')
+                          AS failures,
+                      count(*) FILTER (WHERE error_kind = 'simulated_outage') AS drills,
                       percentile_disc(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,
                       percentile_disc(0.9) WITHIN GROUP (ORDER BY latency_ms) AS p90_ms,
                       sum(cost_usd) AS cost_usd,
@@ -434,6 +437,7 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
                 "model": r["model"],
                 "calls": r["calls"],
                 "failures": r["failures"],
+                "drills": r["drills"],
                 "p50_ms": r["p50_ms"],
                 "p90_ms": r["p90_ms"],
                 "cost_usd": _num(r["cost_usd"]),

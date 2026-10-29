@@ -17,7 +17,7 @@ type Monitoring = {
   };
   turns: { day: string; outcome: string; turns: number; p50_ms: number; p90_ms: number; cost_usd: number; fallbacks: number }[];
   feedback: { rating: number; reason: string; ratings: number }[];
-  calls_24h: { route: string; provider: string; model: string; calls: number; failures: number; p50_ms: number; p90_ms: number; cost_usd: number; cache_share: number | null }[];
+  calls_24h: { route: string; provider: string; model: string; calls: number; failures: number; drills: number; p50_ms: number; p90_ms: number; cost_usd: number; cache_share: number | null }[];
   refusals_24h: { reason: string; refusals: number }[];
 };
 
@@ -206,7 +206,7 @@ export function MonitoringView() {
       )}
 
       <h2 className="console-h3">Model calls, last 24 hours</h2>
-      <p className="muted small">Every call the gateway made, the release checks' included.</p>
+      <p className="muted small">Every call the gateway made, the release checks' included. An outage drill is a call the primary provider was told to skip, to prove the fallback answers.</p>
       {m.calls_24h.length === 0 ? (
         <p className="empty">No calls in the last 24 hours.</p>
       ) : (
@@ -219,6 +219,7 @@ export function MonitoringView() {
                 <th scope="col">Model</th>
                 <th scope="col" className="num">Calls</th>
                 <th scope="col" className="num">Failed</th>
+                <th scope="col" className="num">Outage drills</th>
                 <th scope="col" className="num">p50</th>
                 <th scope="col" className="num">p90</th>
                 <th scope="col" className="num">Prompt from cache</th>
@@ -234,6 +235,7 @@ export function MonitoringView() {
                   </td>
                   <td className="num">{c.calls}</td>
                   <td className="num">{c.failures}</td>
+                  <td className="num">{c.drills}</td>
                   <td className="num">{seconds(c.p50_ms)}</td>
                   <td className="num">{seconds(c.p90_ms)}</td>
                   <td className="num">{percent(c.cache_share)}</td>
