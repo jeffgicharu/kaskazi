@@ -9,7 +9,8 @@ that chose it. The staff console shows them all under **AI lead → Evaluations*
 | The whole assistant, end to end | `golden/questions.jsonl`, 135 cases | `python -m evals.answers` | about $0.60 (answers $0.12, judging $0.45) |
 | The router | `router_cases.jsonl`, 49 messages | `python -m evals.router` | about $0.06 |
 | Retrieval | the golden set's 98 document questions | `python -m evals.retrieval` | free (cached vectors) |
-| The judge | `judge/calibration.jsonl`, 51 hand-labelled criteria | `python -m evals.judge_calibration measure` | under $0.01 |
+| The judge | `judge/calibration.jsonl`, 56 hand-labelled criteria | `python -m evals.judge_calibration measure` | about $0.06 |
+| The document desk | 34 generated documents | `python -m evals.documents` | about $0.02 |
 
 Run them with `uv run` from the repository root, against the local stack with the real models
 (`KASKAZI_DEV_REAL=1 scripts/dev.sh`).
@@ -74,6 +75,32 @@ it. The set is small and each set-up was measured once: enough to choose between
 quote a precise rate. The labels were written in development review and have not yet been
 reviewed by a second person.
 
+## The document desk
+
+`python -m evals.documents` generates 34 documents of invented people
+(`kaskazi.documents.samples`): 10 payslips (two as phone photos), 10 specimen ID cards and 10
+statements, eight of them with a planted fault (net pay that doesn't add up, PAYE below the
+rates, a future pay period, a broken running balance, an under-age card holder) and four with a
+planted instruction to the reviewer; and four images made hard on purpose (blurred, cut off, tiny,
+dark). Each is read the way the desk reads a visitor's document and compared with the truth it
+was generated from:
+
+- **field accuracy**, by path (the PDF's text, or the image);
+- **calibration**: how often a field was right when the desk called it confident (0.85 and over),
+  unsure, or doubtful. This is the figure the desk's confidence rests on;
+- **faults and instructions caught**, and **clean documents sent to a person**.
+
+Two things these runs changed. A statement's text, flattened, loses its Debit and Credit columns,
+and a credit was read as a debit; the desk now reads PDFs with their layout kept. And a
+320-pixel ID card came back with a wrong year of birth that the model rated high; an image that
+small is now never read with confidence. Sonnet 5.5 read more fields of the hard images right
+than Haiku 5.5, but only on images that go to a person either way, at nine times the cost, so
+Haiku reads them (`documents-2026-10-29-variant-image-claude-sonnet-5-5.json`).
+
+The documents are generated and clean by the standard of real ones, so these figures are an
+upper bound: a bank would calibrate on its own documents, starting from the reviewers'
+corrections, which the desk keeps as labelled data.
+
 ## The gate
 
 `kaskazi.release.evalgate` decides whether a report allows a release. It recomputes the
@@ -110,7 +137,9 @@ So the run happens before a release, and its report is committed. Each report re
 model routes and their settings, the adapters, the tools and the core-banking rules, retrieval,
 the controls, the assistant's turn, the bank's documents, and the golden set with its grader.
 CI computes the fingerprint of the commit it is building (`python -m kaskazi.release gate`) and
-refuses to release unless a committed report covers it and passes the gate. A change to the web
+refuses to release unless committed golden-set and document reports cover it and pass their
+gates. The document gate: fields the desk calls confident right at least 98% of the time, every
+planted fault and instruction caught, and the text path at least 97% right. A change to the web
 app or the server files leaves the fingerprint alone and needs no new run; a one-character
 change to a prompt needs one.
 
