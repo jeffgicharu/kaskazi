@@ -15,9 +15,10 @@ type Monitoring = {
     spent: { day_usd: number; month_usd: number };
     breakers: Record<string, Breaker>;
   };
-  turns: { day: string; outcome: string; turns: number; p50_ms: number; p90_ms: number; cost_usd: number; fallbacks: number }[];
+  turns: { day: string; outcome: string; turns: number; p50_ms: number; p95_ms: number; cost_usd: number; fallbacks: number }[];
   feedback: { rating: number; reason: string; ratings: number }[];
-  calls_24h: { route: string; provider: string; model: string; calls: number; failures: number; drills: number; p50_ms: number; p90_ms: number; cost_usd: number; cache_share: number | null }[];
+  calls_24h: { route: string; provider: string; model: string; calls: number; failures: number; drills: number; p50_ms: number; p95_ms: number; cost_usd: number; cache_share: number | null }[];
+  features: { day: string; purpose: string; calls: number; cost_usd: number }[];
   refusals_24h: { reason: string; refusals: number }[];
 };
 
@@ -57,6 +58,17 @@ const ROUTE_NAMES: Record<string, string> = {
   "documents.extract_text": "Document reading (text)",
   "documents.extract_image": "Document reading (image)",
   "evals.judge": "Evaluation judge",
+};
+
+const FEATURE_NAMES: Record<string, string> = {
+  assistant: "Answers",
+  router: "Reading the message (router)",
+  embed: "Search vectors",
+  summary: "Handover summaries",
+  extract_text: "Document desk, text",
+  extract_image: "Document desk, images",
+  judge: "Evaluation judge",
+  check: "Release checks",
 };
 
 const BREAKER: Record<Breaker, { label: string; tone: string }> = {
@@ -110,19 +122,26 @@ export function MonitoringView() {
   if (data.isError || !data.data) return <p className="field-error" role="alert">The figures didn't load.</p>;
   const m = data.data;
 
-  const days = new Map<string, { turns: number; answered: number; handover: number; refused: number; notAnswered: number; p50?: number; p90?: number; cost: number; fallbacks: number }>();
+  const days = new Map<string, { turns: number; answered: number; handover: number; refused: number; notAnswered: number; p50?: number; p95?: number; cost: number; fallbacks: number }>();
   for (const r of m.turns) {
     const d = days.get(r.day) ?? { turns: 0, answered: 0, handover: 0, refused: 0, notAnswered: 0, cost: 0, fallbacks: 0 };
     d.turns += r.turns;
     d.cost += r.cost_usd ?? 0;
     d.fallbacks += r.fallbacks;
-    if (r.outcome === "answered") Object.assign(d, { answered: d.answered + r.turns, p50: r.p50_ms, p90: r.p90_ms });
+    if (r.outcome === "answered") Object.assign(d, { answered: d.answered + r.turns, p50: r.p50_ms, p95: r.p95_ms });
     else if (r.outcome === "handover") d.handover += r.turns;
     else if (REFUSED.has(r.outcome)) d.refused += r.turns;
     else if (NOT_ANSWERED.has(r.outcome)) d.notAnswered += r.turns;
     days.set(r.day, d);
   }
-  const total = [...days.values()].reduce((a, d) => ({ turns: a.turns + d.turns, answered: a.answered + d.answered, handover: a.handover + d.handover, cost: a.cost + d.cost }), { turns: 0, answered: 0, handover: 0, cost: 0 });
+  const total = [...days.values()].reduce(
+    (a, d) => ({ turns: a.turns + d.turns, answered: a.answered + d.answered, handover: a.handover + d.handover, cost: a.cost + d.cost, fallbacks: a.fallbacks + d.fallbacks }),
+    { turns: 0, answered: 0, handover: 0, cost: 0, fallbacks: 0 },
+  );
+  const calls = m.calls_24h.reduce((a, c) => ({ calls: a.calls + c.calls, failures: a.failures + c.failures }), { calls: 0, failures: 0 });
+  const featureDays = [...new Set(m.features.map((f) => f.day))].sort();
+  const featureNames = [...new Set(m.features.map((f) => f.purpose))].sort();
+  const featureCost = (purpose: string, day: string) => m.features.find((f) => f.purpose === purpose && f.day === day)?.cost_usd ?? 0;
   const helpful = m.feedback.filter((f) => f.rating > 0).reduce((a, f) => a + f.ratings, 0);
   const unhelpful = m.feedback.filter((f) => f.rating < 0);
 
@@ -162,7 +181,9 @@ export function MonitoringView() {
       <div className="tiles">
         <Tile label="Turns" value={String(total.turns)} />
         <Tile label="Answered" value={total.turns ? percent(total.answered / total.turns) : "–"} note={`${total.answered} turns`} />
-        <Tile label="Passed to a person" value={String(total.handover)} />
+        <Tile label="Passed to a person" value={total.turns ? percent(total.handover / total.turns) : "–"} note={`${total.handover} turns`} />
+        <Tile label="Answered by the fallback" value={total.turns ? percent(total.fallbacks / total.turns) : "–"} note={`${total.fallbacks} turns`} />
+        <Tile label="Model calls that failed" value={calls.calls ? percent(calls.failures / calls.calls) : "–"} note="last 24 hours, outage drills apart" />
         <Tile label="Model spending" value={usd(total.cost, 4)} note="visitors' turns only" />
       </div>
       {days.size === 0 ? (
@@ -180,7 +201,7 @@ export function MonitoringView() {
                 <th scope="col" className="num">Refused</th>
                 <th scope="col" className="num">Not answered</th>
                 <th scope="col" className="num">Reply p50</th>
-                <th scope="col" className="num">Reply p90</th>
+                <th scope="col" className="num">Reply p95</th>
                 <th scope="col" className="num">Cost</th>
                 <th scope="col" className="num">Fallbacks</th>
               </tr>
@@ -195,7 +216,7 @@ export function MonitoringView() {
                   <td className="num">{d.refused}</td>
                   <td className="num">{d.notAnswered}</td>
                   <td className="num">{seconds(d.p50)}</td>
-                  <td className="num">{seconds(d.p90)}</td>
+                  <td className="num">{seconds(d.p95)}</td>
                   <td className="num">{usd(d.cost, 4)}</td>
                   <td className="num">{d.fallbacks}</td>
                 </tr>
@@ -221,7 +242,7 @@ export function MonitoringView() {
                 <th scope="col" className="num">Failed</th>
                 <th scope="col" className="num">Outage drills</th>
                 <th scope="col" className="num">p50</th>
-                <th scope="col" className="num">p90</th>
+                <th scope="col" className="num">p95</th>
                 <th scope="col" className="num">Prompt from cache</th>
                 <th scope="col" className="num">Cost</th>
               </tr>
@@ -237,9 +258,45 @@ export function MonitoringView() {
                   <td className="num">{c.failures}</td>
                   <td className="num">{c.drills}</td>
                   <td className="num">{seconds(c.p50_ms)}</td>
-                  <td className="num">{seconds(c.p90_ms)}</td>
+                  <td className="num">{seconds(c.p95_ms)}</td>
                   <td className="num">{percent(c.cache_share)}</td>
                   <td className="num">{usd(c.cost_usd, 4)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2 className="console-h3">Cost by feature, last {m.days} days</h2>
+      <p className="muted small">What each part of the platform spent on models, by day in Nairobi time, the release checks' included.</p>
+      {m.features.length === 0 ? (
+        <p className="empty">No model calls in this period.</p>
+      ) : (
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="Cost by feature and day">
+          <table className="data-table">
+            <caption className="visually-hidden">Cost by feature and day</caption>
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                {featureDays.map((day) => (
+                  <th key={day} scope="col" className="num">
+                    {shortDate(day)}
+                  </th>
+                ))}
+                <th scope="col" className="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {featureNames.map((purpose) => (
+                <tr key={purpose}>
+                  <th scope="row">{FEATURE_NAMES[purpose] ?? purpose}</th>
+                  {featureDays.map((day) => (
+                    <td key={day} className="num">
+                      {usd(featureCost(purpose, day), 4)}
+                    </td>
+                  ))}
+                  <td className="num">{usd(featureDays.reduce((sum, day) => sum + featureCost(purpose, day), 0), 4)}</td>
                 </tr>
               ))}
             </tbody>

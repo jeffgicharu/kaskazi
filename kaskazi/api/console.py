@@ -391,7 +391,7 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
     days = max(1, min(days, 30))
     async with plain_tx(svc.pool) as conn:
         since = await conn.fetchval("SELECT now() - make_interval(days => $1)", days)
-        turns = await conn.fetch("SELECT * FROM app.site_turn_stats($1)", since)
+        turns = await conn.fetch("SELECT * FROM app.visitor_turn_stats($1)", since)
         feedback = await conn.fetch("SELECT * FROM app.site_feedback_stats($1)", since)
         calls = await conn.fetch(
             """SELECT route, provider, model, count(*) AS calls,
@@ -400,12 +400,18 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
                           AS failures,
                       count(*) FILTER (WHERE error_kind = 'simulated_outage') AS drills,
                       percentile_disc(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50_ms,
-                      percentile_disc(0.9) WITHIN GROUP (ORDER BY latency_ms) AS p90_ms,
+                      percentile_disc(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms,
                       sum(cost_usd) AS cost_usd,
                       sum(cache_read_tokens) AS cache_read_tokens,
                       sum(input_tokens + cache_read_tokens + cache_write_tokens) AS prompt_tokens
                FROM gateway.calls WHERE at > now() - interval '24 hours'
                GROUP BY 1, 2, 3 ORDER BY 1, 2, 3"""
+        )
+        # Cost per feature and per day: every call, the release checks' included.
+        features = await conn.fetch(
+            "SELECT (at AT TIME ZONE 'Africa/Nairobi')::date AS day, purpose, count(*) AS calls, "
+            "sum(cost_usd) AS cost_usd FROM gateway.calls WHERE at >= $1 GROUP BY 1, 2 ORDER BY 1, 2",
+            since,
         )
         refusals = await conn.fetch(
             "SELECT reason, count(*) AS refusals FROM gateway.refusals "
@@ -420,7 +426,7 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
                 "outcome": r["outcome"],
                 "turns": r["turns"],
                 "p50_ms": r["p50_ms"],
-                "p90_ms": r["p90_ms"],
+                "p95_ms": r["p95_ms"],
                 "cost_usd": _num(r["cost_usd"]),
                 "fallbacks": r["fallbacks"],
             }
@@ -439,7 +445,7 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
                 "failures": r["failures"],
                 "drills": r["drills"],
                 "p50_ms": r["p50_ms"],
-                "p90_ms": r["p90_ms"],
+                "p95_ms": r["p95_ms"],
                 "cost_usd": _num(r["cost_usd"]),
                 # Embeddings have no prompt to cache.
                 "cache_share": round(r["cache_read_tokens"] / r["prompt_tokens"], 3)
@@ -449,6 +455,15 @@ async def monitoring(s: Lead, svc: Svc, days: int = 7) -> dict[str, Any]:
             for r in calls
         ],
         "refusals_24h": [{"reason": r["reason"], "refusals": r["refusals"]} for r in refusals],
+        "features": [
+            {
+                "day": r["day"].isoformat(),
+                "purpose": r["purpose"],
+                "calls": r["calls"],
+                "cost_usd": _num(r["cost_usd"]),
+            }
+            for r in features
+        ],
     }
 
 
