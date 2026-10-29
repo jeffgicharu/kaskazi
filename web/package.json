@@ -9,7 +9,8 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "budget": "node scripts/bundle-budget.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

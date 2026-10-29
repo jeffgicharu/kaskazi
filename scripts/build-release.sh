@@ -66,7 +66,7 @@ uv run --frozen python -m kaskazi.release fingerprint > "$out/app/fingerprint.js
 find "$out/app" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 # The web app.
-(cd web && pnpm install --frozen-lockfile --silent && pnpm -s build)
+(cd web && pnpm install --frozen-lockfile --silent && pnpm -s build && pnpm -s budget)
 cp -r web/dist "$out/web"
 mkdir -p "$out/pages"
 cp deploy/unavailable.html "$out/pages/"
