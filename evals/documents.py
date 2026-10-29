@@ -121,7 +121,7 @@ async def read(
         )
     caught = {d: bool(FINDS[d] & failed) for d in sample["defects"]}
     return {
-        "key": sample["key"],
+        "document": sample["key"],
         "kind": sample["kind"],
         "path": x.path,
         "seconds": seconds,
