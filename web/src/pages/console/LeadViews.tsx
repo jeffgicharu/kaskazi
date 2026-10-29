@@ -168,7 +168,7 @@ export function MonitoringView() {
       {days.size === 0 ? (
         <p className="empty">No visitor has asked anything in this period.</p>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="Turns by day">
           <table className="data-table">
             <caption className="visually-hidden">Turns by day</caption>
             <thead>
@@ -210,7 +210,7 @@ export function MonitoringView() {
       {m.calls_24h.length === 0 ? (
         <p className="empty">No calls in the last 24 hours.</p>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="Model calls by route">
           <table className="data-table">
             <caption className="visually-hidden">Model calls by route</caption>
             <thead>
@@ -336,7 +336,7 @@ function OtherReport({ name, report }: { name: string; report: Record<string, un
   if (name.startsWith("router-")) {
     const variants = report.variants as Record<string, { model: string; effort: string; thinking: boolean; ms_p50: number; ms_p90: number; cost_usd: number; accuracy: Record<string, number> }>;
     return (
-      <div className="table-scroll">
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Router measurements">
         <table className="data-table">
           <caption>Router: {String(report.cases)} labelled messages, each set-up once</caption>
           <thead>
@@ -372,7 +372,7 @@ function OtherReport({ name, report }: { name: string; report: Record<string, un
   if (name.startsWith("judge-")) {
     const setups = report.setups as { judge: { model: string; effort: string; prompt: string }; agreement: number; false_contradictions: number; cost_usd: number }[];
     return (
-      <div className="table-scroll">
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Judge measurements">
         <table className="data-table">
           <caption>The judge: {String(report.set).split(":")[1] ?? ""}</caption>
           <thead>
@@ -402,7 +402,7 @@ function OtherReport({ name, report }: { name: string; report: Record<string, un
   if (name.startsWith("retrieval-")) {
     const results = report.results as Record<string, { document_recall: number; section_recall: number; mrr: number }>;
     return (
-      <div className="table-scroll">
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Retrieval measurements">
         <table className="data-table">
           <caption>Retrieval: {String(report.questions)} questions, top {String(report.k)} passages</caption>
           <thead>
@@ -540,7 +540,11 @@ export function PromptsView() {
                   <button type="button" className="link-btn" aria-expanded={open === key} onClick={() => setOpen(open === key ? null : key)}>
                     {open === key ? "Hide the text" : "Show the text"}
                   </button>
-                  {open === key ? <pre className="payload">{v.body}</pre> : null}
+                  {open === key ? (
+                    <pre className="payload" tabIndex={0} aria-label={`The text of ${key}`}>
+                      {v.body}
+                    </pre>
+                  ) : null}
                 </li>
               );
             })}

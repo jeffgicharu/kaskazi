@@ -288,7 +288,11 @@ function AuditTrail() {
                       <span className="event-kind">{e.kind.replaceAll("_", " ")}</span>
                       <span className="event-hash tabular">#{e.seq} · {e.hash}</span>
                     </button>
-                    {open === e.seq ? <pre className="payload">{JSON.stringify(e.payload, null, 2)}</pre> : null}
+                    {open === e.seq ? (
+                      <pre className="payload" tabIndex={0} aria-label={`Event ${e.seq}`}>
+                        {JSON.stringify(e.payload, null, 2)}
+                      </pre>
+                    ) : null}
                   </li>
                 ))}
               </ol>
