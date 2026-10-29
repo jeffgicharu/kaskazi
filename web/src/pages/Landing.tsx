@@ -8,7 +8,8 @@ import { DemoBanner, WindLines, Wordmark } from "../components/Brand";
 
 const ROLES = [
   { key: "agent", title: "Agent", action: "Open as an agent", text: "Take conversations the assistant hands over, with the summary and what it looked at." },
-  { key: "ai_lead", title: "AI lead", action: "Open as the AI lead", text: "Read the audit trail of every turn, verify its hash chain, and switch on a provider outage." },
+  { key: "reviewer", title: "Reviewer", action: "Open as a reviewer", text: "Check the documents the AI read for a loan application, correct what it got wrong, and decide." },
+  { key: "ai_lead", title: "AI lead", action: "Open as the AI lead", text: "Read the audit trail, monitor spending and quality, and see every evaluation and prompt." },
 ] as const;
 
 export function Landing() {

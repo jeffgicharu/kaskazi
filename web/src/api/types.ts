@@ -114,3 +114,69 @@ export type SourceDocument = {
   body: string;
   highlight: string | null;
 };
+
+// --- The document desk -----------------------------------------------------------------------
+
+export type DocKind = "payslip" | "id" | "statement";
+
+export type DocField = { name: string; label: string; value: string | null; evidence?: string | null; confidence: number; problems: string[] };
+
+export type DocCheck = { name: string; label: string; fault: string; ok: boolean | null; detail: string; fields: string[] };
+
+export type DeskDocument = {
+  id: string;
+  kind: DocKind;
+  title: string;
+  source: "sample" | "upload";
+  filename: string;
+  media_type: string;
+  path: "text" | "image" | null;
+  status: "received" | "verified" | "needs_review" | "approved" | "corrected" | "rejected" | "unreadable";
+  fields: DocField[];
+  checks: DocCheck[];
+  review_reasons: string[];
+  model: string | null;
+  created_at: string;
+};
+
+export type Affordability = {
+  net_pay_from_payslip: string | null;
+  affordability_limit?: number;
+  existing_monthly_repayments?: number;
+  room_for_new_instalment?: number;
+  largest_loan_by_term?: Record<string, number>;
+  requested_fits?: boolean | null;
+  reasons?: string[];
+  based_on?: string;
+};
+
+export type LoanApplication = {
+  id: string;
+  amount: number;
+  term_months: number;
+  status: "documents_requested" | "under_review" | "approved" | "declined" | "withdrawn";
+  documents: DeskDocument[];
+  still_needed: DocKind[];
+  assessment: { checks: DocCheck[]; affordability: Affordability } | null;
+  decision: {
+    decision: "approve" | "decline" | "more_documents";
+    reason: string;
+    decided_at: string;
+    paid_out?: { amount: number; amount_received: number; monthly_instalment: number; account: string; reference: string };
+  } | null;
+  created_at: string;
+};
+
+export type SampleDocument = { key: string; kind: DocKind; title: string; about: string; file: string; has_fault: boolean };
+
+export type LoanQuote = {
+  amount: number;
+  term_months: number;
+  interest_rate: number;
+  monthly_instalment: number;
+  arrangement_fee: number;
+  credit_life_insurance: number;
+  amount_received: number;
+  total_repaid: number;
+  total_cost_of_credit: number;
+};

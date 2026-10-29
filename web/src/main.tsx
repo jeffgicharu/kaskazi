@@ -14,6 +14,7 @@ import { ApiError } from "./api/client";
 import { ErrorPage } from "./pages/ErrorPage";
 import { NotFound } from "./pages/NotFound";
 import { Landing } from "./pages/Landing";
+import { ApplyPage } from "./pages/apply/ApplyPage";
 import { ChatPage } from "./pages/chat/ChatPage";
 import { ConsolePage } from "./pages/console/ConsolePage";
 
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <Landing /> },
       { path: "/chat", element: <ChatPage /> },
+      { path: "/apply", element: <ApplyPage /> },
       { path: "/console", element: <ConsolePage /> },
       { path: "*", element: <NotFound /> },
     ],

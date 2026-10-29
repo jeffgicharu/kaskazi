@@ -152,6 +152,50 @@ test("the AI lead's monitoring, evaluations and prompts load and pass axe", asyn
   await noAxeViolations(page, "prompts");
 });
 
+test("a loan application goes from documents to a person's decision", async ({ page }) => {
+  await startAsAmina(page);
+  await page.goto("/apply");
+  await expect(page.getByRole("heading", { name: "Apply with your documents" })).toBeVisible();
+  await expect(page.getByText("Each month")).toBeVisible();
+  await noAxeViolations(page, "apply");
+  await page.getByRole("button", { name: "Start the application" }).click();
+
+  // A payslip with an instruction hidden in white text is caught and sent to a person.
+  await page.getByRole("button", { name: /Payslip with a hidden instruction/ }).click();
+  const payslip = page.locator(".doc-slot").filter({ hasText: "Your latest payslip" });
+  await expect(payslip.getByText("A colleague will check it")).toBeVisible();
+  await expect(payslip.getByText(/Text is hidden on the page/)).toBeVisible();
+  // The clean one replaces it, and is read and checked.
+  await payslip.getByRole("button", { name: "Give a different payslip" }).click();
+  await payslip.getByRole("button", { name: /^Payslip, October 2026 Her latest/ }).click();
+  await expect(payslip.getByText("Read and checked")).toBeVisible();
+  await expect(payslip.locator(".doc-field").filter({ hasText: "Net pay" })).toContainText("KES 68,940.13");
+  await page.getByRole("button", { name: /^Identity card \(specimen\)/ }).click();
+  await expect(page.locator(".doc-slot").filter({ hasText: "Your identity card" }).getByText("A colleague will check it")).toBeVisible();
+  await noAxeViolations(page, "apply, documents read");
+  await page.getByRole("button", { name: "Send for a decision" }).click();
+  await expect(page.getByText("With a colleague for a decision")).toBeVisible();
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open as a reviewer" }).click();
+  await expect(page.getByRole("heading", { name: "Loan applications" })).toBeVisible();
+  await expect(page.getByText("The requested loan fits")).toBeVisible();
+  await noAxeViolations(page, "reviewer");
+  // The stand-in providers can't read images, so the reviewer types the card's fields.
+  const card = page.locator(".doc-review").filter({ hasText: "Identity card" });
+  await card.getByRole("textbox", { name: "Correct full name" }).fill("Amina Wanjiru Kariuki");
+  await card.getByRole("textbox", { name: "Correct id number" }).fill("27450913");
+  await card.getByRole("textbox", { name: "Correct date of birth" }).fill("1988-03-14");
+  await card.getByRole("textbox", { name: "Correct date of issue" }).fill("2007-05-21");
+  await card.getByRole("button", { name: "Save 4 corrections" }).click();
+  await expect(card.getByText("Corrected by a colleague")).toBeVisible();
+  await page.getByRole("button", { name: "Approve and pay out" }).click();
+  await expect(page.getByText(/Nothing waiting/)).toBeVisible();
+
+  await page.goto("/apply");
+  await expect(page.getByText("Approved and paid out")).toBeVisible();
+});
+
 test("an unknown page is the app's own not-found page", async ({ page }) => {
   await page.goto("/no-such-page");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("There's no page here.");

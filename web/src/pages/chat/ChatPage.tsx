@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate } from "react-router";
 
 import { ApiError, api } from "../../api/client";
 import type { Conversation, Overview, Session, Source, ThreadMessage, TurnResult } from "../../api/types";
@@ -336,6 +336,9 @@ function QuickActions({
         <button type="button" className="btn btn-quiet" onClick={onAskForPerson} disabled={withAgent}>
           {withAgent ? "With a colleague now" : "Talk to a person"}
         </button>
+        <Link className="btn btn-quiet" to="/apply">
+          Apply for a loan
+        </Link>
       </div>
       {error ? (
         <p className="field-error" role="alert">{error}</p>

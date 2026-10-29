@@ -61,8 +61,26 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (await response.json()) as T;
 }
 
+async function upload<T>(path: string, form: FormData): Promise<T> {
+  let response: Response;
+  try {
+    // No Content-Type: the browser writes the multipart boundary itself.
+    response = await fetch(path, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "X-Kaskazi": "1" },
+      body: form,
+    });
+  } catch {
+    throw new ApiError(0, "You seem to be offline. Check your connection and try again.");
+  }
+  if (!response.ok) throw await readError(response);
+  return (await response.json()) as T;
+}
+
 export const api = {
   get: <T,>(path: string) => request<T>("GET", path),
   post: <T,>(path: string, body: unknown = {}) => request<T>("POST", path, body),
   del: <T,>(path: string) => request<T>("DELETE", path),
+  upload: <T,>(path: string, form: FormData) => upload<T>(path, form),
 };

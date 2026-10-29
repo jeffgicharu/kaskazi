@@ -7,6 +7,7 @@ import { DemoBanner, Wordmark } from "../../components/Brand";
 import { useEventStream } from "../../hooks/useEventStream";
 import { when } from "../../lib/format";
 import { EvaluationsView, MonitoringView, PromptsView } from "./LeadViews";
+import { ReviewQueue } from "./ReviewViews";
 
 type Role = "agent" | "reviewer" | "ai_lead";
 type Handover = {
@@ -70,7 +71,7 @@ function Console({ role }: { role: Role }) {
           <Wordmark to="/" />
           <span className="console-title">Staff console</span>
           <nav className="role-switch" aria-label="Role">
-            {(["agent", "ai_lead"] as Role[]).map((r) => (
+            {(["agent", "reviewer", "ai_lead"] as Role[]).map((r) => (
               <button key={r} type="button" className={`role-tab${r === role ? " is-current" : ""}`} aria-current={r === role ? "page" : undefined} onClick={() => switchRole.mutate(r)}>
                 {ROLE_NAMES[r]}
               </button>
@@ -82,7 +83,7 @@ function Console({ role }: { role: Role }) {
         </header>
       </div>
       <main id="main" className="console-main">
-        {role === "ai_lead" ? <LeadConsole /> : <HandoverQueue />}
+        {role === "ai_lead" ? <LeadConsole /> : role === "reviewer" ? <ReviewQueue /> : <HandoverQueue />}
       </main>
     </div>
   );
