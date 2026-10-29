@@ -54,7 +54,9 @@ fallback_timeout_s = 30
 
 [routes."evals.judge"]
 primary = "claude-haiku-5-5"
-effort = "medium"
+# High effort: on 51 hand-labelled criteria it agreed with every label, as Sonnet 5.5 did at ten
+# times the cost; at medium effort it disagreed on one. evals/reports/judge-2026-10-29.json
+effort = "high"
 max_tokens = 2048
 timeout_s = 30
 

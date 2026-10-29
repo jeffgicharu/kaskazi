@@ -1,0 +1,166 @@
+{
+ "run_on": "2026-10-29T04:05:00+00:00",
+ "set": "evals/judge/calibration.jsonl: 19 golden-set answers, 56 hand-labelled criteria (43 met, 13 missed, none contradicted); the first four set-ups were measured on the first 16 answers (51 criteria), before three answers that use the bank's records were added",
+ "note": "One run of each set-up on a small set: enough to choose between them, not a precise rate.",
+ "setups": [
+  {
+   "judge": {
+    "model": "claude-haiku-5-5",
+    "effort": "medium",
+    "prompt": "evals.judge@1.0.0"
+   },
+   "cases": 16,
+   "criteria": 51,
+   "agreement": 0.922,
+   "false_contradictions": 1,
+   "missed_contradictions": 0,
+   "cost_usd": 0.002,
+   "confusion": {
+    "met -> met": 37,
+    "met -> missed": 2,
+    "missed -> contradicted": 1,
+    "missed -> met": 1,
+    "missed -> missed": 10
+   },
+   "disagreements": [
+    {
+     "id": "acc-006",
+     "criterion": "a payment only goes through if there is enough money to cover it and its fee; otherwise it is declined",
+     "reader": "missed",
+     "judge": "met",
+     "why": "The answer says \"malipo yanayozidi salio yatakataliwa\" (payments exceeding the balance will be declined), though it does not explicitly mention the fee, the criterion's core rule is that insufficient funds lead to decline, which the answer states."
+    },
+    {
+     "id": "crd-024",
+     "criterion": "says the bank's documents don't cover paying with a phone wallet",
+     "reader": "met",
+     "judge": "missed",
+     "why": "The answer says \"I don't have information about adding your Kaskazi card to a phone\" but never says the bank's documents don't cover paying with a phone wallet."
+    },
+    {
+     "id": "lon-007",
+     "criterion": "flat fee of 3.0% and no interest",
+     "reader": "missed",
+     "judge": "contradicted",
+     "why": "The answer gives a fee of KES 600 on KES 20,000 and KES 1,034 on KES 34,470, which are 3.0% and about 3.0% of those amounts, but it never states a flat 3.0% fee or says there is no interest, so this is missed rather than contradicted; on closer reading the stated fees do match 3.0%, but the criterion's rule (flat fee, no interest) is not stated."
+    },
+    {
+     "id": "pay-028",
+     "criterion": "ready at the chosen branch within 5 working days",
+     "reader": "met",
+     "judge": "missed",
+     "why": "The answer says the card \"is ready within 5 working days, and collected at the branch you choose\", which gives the timing but says collection at the branch, not that it is ready at the chosen branch within 5 working days as a single fact; the criterion's wording about being ready at the chosen branch within 5 working days is essentially matched, so this is a judgement call that leans toward met."
+    }
+   ]
+  },
+  {
+   "judge": {
+    "model": "claude-haiku-5-5",
+    "effort": "medium",
+    "prompt": "evals.judge@1.1.0"
+   },
+   "cases": 16,
+   "criteria": 51,
+   "agreement": 0.98,
+   "false_contradictions": 0,
+   "missed_contradictions": 0,
+   "cost_usd": 0.002,
+   "confusion": {
+    "met -> met": 38,
+    "met -> missed": 1,
+    "missed -> missed": 12
+   },
+   "disagreements": [
+    {
+     "id": "pay-028",
+     "criterion": "ready at the chosen branch within 5 working days",
+     "reader": "met",
+     "judge": "missed",
+     "why": "The answer says the card is ready within 5 working days and collected at the branch you choose, but it does not say it is ready at the chosen branch within 5 working days as a single fact; the timing is stated, though the branch link is loosely phrased. The cited passages provide no timing, so this is not verified against the source."
+    }
+   ]
+  },
+  {
+   "judge": {
+    "model": "claude-haiku-5-5",
+    "effort": "high",
+    "prompt": "evals.judge@1.1.0"
+   },
+   "cases": 16,
+   "criteria": 51,
+   "agreement": 1.0,
+   "false_contradictions": 0,
+   "missed_contradictions": 0,
+   "cost_usd": 0.0038,
+   "confusion": {
+    "met -> met": 39,
+    "missed -> missed": 12
+   },
+   "disagreements": []
+  },
+  {
+   "judge": {
+    "model": "claude-sonnet-5-5",
+    "effort": "medium",
+    "prompt": "evals.judge@1.1.0"
+   },
+   "cases": 16,
+   "criteria": 51,
+   "agreement": 1.0,
+   "false_contradictions": 0,
+   "missed_contradictions": 0,
+   "cost_usd": 0.0362,
+   "confusion": {
+    "met -> met": 39,
+    "missed -> missed": 12
+   },
+   "disagreements": []
+  },
+  {
+   "judge": {
+    "model": "claude-haiku-5-5",
+    "effort": "medium",
+    "prompt": "evals.judge@1.2.0"
+   },
+   "cases": 19,
+   "criteria": 56,
+   "agreement": 0.982,
+   "false_contradictions": 0,
+   "missed_contradictions": 0,
+   "cost_usd": 0.0037,
+   "confusion": {
+    "met -> met": 43,
+    "met -> missed": 1,
+    "missed -> missed": 12
+   },
+   "disagreements": [
+    {
+     "id": "lon-021",
+     "criterion": "may explain that the Kaskazi Personal Loan is for individuals only",
+     "reader": "met",
+     "judge": "missed",
+     "why": "The answer says \"I can't confirm that this product is available to a chama\" but never states that the Personal Loan is for individuals only, so the criterion is not explicitly addressed."
+    }
+   ]
+  },
+  {
+   "judge": {
+    "model": "claude-haiku-5-5",
+    "effort": "high",
+    "prompt": "evals.judge@1.2.0"
+   },
+   "cases": 19,
+   "criteria": 56,
+   "agreement": 1.0,
+   "false_contradictions": 0,
+   "missed_contradictions": 0,
+   "cost_usd": 0.004,
+   "confusion": {
+    "met -> met": 44,
+    "missed -> missed": 12
+   },
+   "disagreements": []
+  }
+ ],
+ "decision": "Claude Haiku 5.5 at high effort with evals.judge@1.2.0, which also sees the records the assistant read: it agreed on all 56 criteria, as Sonnet 5.5 had on the first 51, at about a tenth of the cost."
+}
