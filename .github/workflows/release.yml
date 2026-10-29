@@ -49,6 +49,12 @@ jobs:
       - name: Tests (unit, integration, the assistant end to end, release journeys)
         run: uv run pytest -q
 
+      # The golden-set evaluation calls the real models, so it runs before release where the
+      # providers' keys are, and its report is committed. This finds the report that covers this
+      # commit's AI fingerprint and applies the gate to it; no report, no release.
+      - name: A passing golden-set report covers this release's AI
+        run: uv run python -m kaskazi.release gate
+
       - name: Known vulnerabilities in the Python dependencies a release ships
         run: |
           uv export --frozen --no-emit-project --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"

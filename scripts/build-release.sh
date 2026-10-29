@@ -7,10 +7,11 @@
 #   python/   python-build-standalone CPython 3.13, the baseline x86-64 build (the server's CPU
 #             has SSE3 at most), with the locked dependencies installed for the server's glibc
 #   app/      the kaskazi package, the bank's documents and their vectors, the prompts, the
-#             evaluation reports
+#             golden set and the evaluation reports
 #   web/      the built React app (index.html and fingerprinted assets/)
 #   pages/    the unavailable page
 #   REVISION  the sha
+#   app/fingerprint.json  the AI fingerprint the release's evaluation report covers
 #   MANIFEST.sha256  a checksum of every file, checked by kaskazi-activate
 set -euo pipefail
 
@@ -52,8 +53,12 @@ mkdir -p "$out/app"
 cp -r kaskazi prompts "$out/app/"
 mkdir -p "$out/app/corpus" "$out/app/evals"
 cp -r corpus/documents corpus/embeddings "$out/app/corpus/"
+cp -r evals/golden "$out/app/evals/"  # the release check asks ten of its questions live
 [[ -d evals/reports ]] && cp -r evals/reports "$out/app/evals/"
 echo "../../../../app" > "$site/kaskazi-app.pth"
+# The AI fingerprint of the source this release is built from; CI's gate has found a passing
+# golden-set report for it, and the staff console shows which one.
+uv run --frozen python -m kaskazi.release fingerprint > "$out/app/fingerprint.json"
 find "$out/app" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 # The web app.

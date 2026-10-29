@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Callable
 
 import httpx
 
+from kaskazi.release.golden import ten_golden_questions
 from kaskazi.release.journeys import JOURNEYS
 
 Check = Callable[[httpx.AsyncClient, httpx.AsyncClient, str], Awaitable[str]]
@@ -30,6 +31,8 @@ async def both_report_the_release(
             )
         if name == "gateway" and response.json().get("fake_providers"):
             raise CheckFailed("the gateway is running with stand-in providers")
+        if name == "gateway" and response.json().get("routes_override"):
+            raise CheckFailed("the gateway is running with another routes file than the release's")
     return "API and gateway both report the release"
 
 
@@ -57,8 +60,16 @@ async def api_says_noindex(api: httpx.AsyncClient, gateway: httpx.AsyncClient, r
     return "the API sends noindex"
 
 
-CHECKS: list[Check] = [both_report_the_release, pinned_models_exist, api_says_noindex, *JOURNEYS]
-STAND_IN_SKIPS = {"both_report_the_release", "pinned_models_exist"}
+CHECKS: list[Check] = [
+    both_report_the_release,
+    pinned_models_exist,
+    api_says_noindex,
+    *JOURNEYS,
+    ten_golden_questions,
+]
+# With stand-in providers there is no real model to check against a model's list or the
+# golden set.
+STAND_IN_SKIPS = {"both_report_the_release", "pinned_models_exist", "ten_golden_questions"}
 
 
 class SessionCookies:

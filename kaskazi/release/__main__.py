@@ -4,6 +4,8 @@ python -I -m kaskazi.release version            imports everything compiled, pri
 python -I -m kaskazi.release migrate            applies the database migrations
 python -I -m kaskazi.release load --release S   loads this release's documents and prompts
 python -I -m kaskazi.release check ...          the release checks against the idle slot
+python -m kaskazi.release gate                   CI: a passing golden-set report covers this AI
+python -m kaskazi.release fingerprint            the AI fingerprint of this tree, as JSON
 """
 
 from __future__ import annotations
@@ -79,11 +81,21 @@ async def check(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def evaluation_gate() -> int:
+    from kaskazi.release.evalgate import check_release
+
+    ok, why = check_release()
+    print(why, file=sys.stdout if ok else sys.stderr)
+    return 0 if ok else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="kaskazi.release")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("version")
     sub.add_parser("migrate")
+    sub.add_parser("gate")
+    sub.add_parser("fingerprint")
     p = sub.add_parser("load")
     p.add_argument("--release", required=True)
     p = sub.add_parser("check")
@@ -103,6 +115,15 @@ def main() -> int:
         return asyncio.run(migrate())
     if args.command == "load":
         return asyncio.run(load(args.release))
+    if args.command == "gate":
+        return evaluation_gate()
+    if args.command == "fingerprint":
+        import json
+
+        from kaskazi.release.fingerprint import fingerprint
+
+        print(json.dumps(fingerprint(), indent=2))
+        return 0
     return asyncio.run(check(args))
 
 
