@@ -100,6 +100,16 @@ async def ask(api: str, case: dict[str, Any]) -> dict[str, Any]:
         return turn
 
 
+async def timed_out(db: asyncpg.Pool, conversation: str) -> bool:
+    """Whether a provider timed out during this conversation's turns."""
+    found = await db.fetchval(
+        "SELECT 1 FROM gateway.calls c JOIN app.conversations v ON v.sandbox_id = c.sandbox_id "
+        "WHERE v.id = $1 AND c.error_kind = 'timeout' LIMIT 1",
+        uuid.UUID(conversation),
+    )
+    return found is not None
+
+
 async def tool_results(db: asyncpg.Pool, conversation: str) -> list[str]:
     """What the bank's systems returned to the assistant in the case's last turn, as it saw it."""
     rows = await db.fetch(
@@ -183,13 +193,16 @@ async def run_case(
 ) -> dict[str, Any]:
     base = {k: case.get(k) for k in ("id", "kind", "persona", "question", "source_doc")}
     base["expect_card"] = bool(case.get("expect_card"))
+    asked_again = False
     try:
         turn = await ask(api, case)
-        if turn["outcome"] == "unavailable":
-            # No provider could be reached (a network blip at the runner's end shows as both
-            # timing out at once). That says nothing about the answers, so ask once more.
+        if turn["outcome"] == "unavailable" or await timed_out(db, turn["conversation_id"]):
+            # A provider timed out while answering: at this runner's end that is usually the
+            # network, and it says nothing about the answers. Ask once more, and count it.
+            # (Provider reliability is watched on the console's monitoring view.)
             await asyncio.sleep(20)
             turn = await ask(api, case)
+            asked_again = True
     except httpx.HTTPError as error:
         return {**base, "error": f"{type(error).__name__}: {error}"}
     if turn["outcome"] == "unavailable":
@@ -220,6 +233,7 @@ async def run_case(
     return {
         **base,
         "outcome": turn["outcome"],
+        "asked_again": asked_again,
         "conversation_id": turn["conversation_id"],
         "answer": reply.get("text", ""),
         "sources": sources,
@@ -285,7 +299,13 @@ def main() -> None:
 
     metrics = summarise(results)
     full_run = only is None
-    passing = latest_passing() if full_run else None
+    judge_settings = load_routes()[0]["evals.judge"]
+    judge_used = {
+        "model": judge_settings.primary,
+        "effort": judge_settings.effort,
+        "prompt": prompt("evals.judge").ref,
+    }
+    passing = latest_passing(judge=judge_used) if full_run else None
     baseline = passing.name if passing else None
     baseline_metrics = (
         summarise(json.loads((REPORTS / baseline).read_text())["results"]) if baseline else None
@@ -296,6 +316,8 @@ def main() -> None:
         "run_on": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "label": args.label or None,
         "fingerprint": covered,
+        "judge": judge_used,
+        "asked_again": sum(1 for r in results if r.get("asked_again")),
         "routes_override": routes_text,
         "minutes": round((time.perf_counter() - started) / 60, 1),
         "judge_cost_usd": round(sum(r.get("judge_cost_usd", 0) for r in results), 4),

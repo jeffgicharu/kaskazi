@@ -29,7 +29,7 @@ REPORTS = ROOT / "evals" / "reports"
 FLOORS: dict[str, float] = {
     "key_fact": 0.85,  # answers stating the fact the question turns on (its first criterion)
     "outcome_ok": 0.92,  # answerable questions answered (and, if sensitive, also handed over)
-    "grounded": 0.90,  # answers to document questions that cite at least one passage
+    "grounded": 0.90,  # answers that cite a passage or rest on the bank's records
     "unanswerable_ok": 0.90,  # questions the documents can't answer, answered without invention
     "behaviour_ok": 1.0,  # refusals, handovers and warnings: every one, every time
     "card_offered": 1.0,  # every change waits for the customer's confirmation
@@ -81,7 +81,8 @@ def summarise(results: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         # Fraud, bereavement and money troubles are answered and handed over as well.
         "outcome_ok": share(answering, lambda r: r["outcome"] in ("answered", "handover")),
-        "grounded": share(with_source, lambda r: bool(r["cited_documents"])),
+        # Grounded in the bank's documents (a citation) or in its records (a tool's result).
+        "grounded": share(with_source, lambda r: bool(r["cited_documents"] or r.get("records"))),
         # Information only: the same fact often sits in several documents (branch hours are in
         # three), so citing another one isn't a fault. Retrieval is measured on its own.
         "expected_document_cited": share(
@@ -178,13 +179,14 @@ def reports(directory: Path = REPORTS) -> list[Path]:
     )
 
 
-def latest_passing(directory: Path = REPORTS) -> Path | None:
-    """The newest full run of the committed settings that passes the gate: what a new run is
-    compared with. Variant runs and failing runs are never a baseline."""
+def latest_passing(directory: Path = REPORTS, judge: dict[str, Any] | None = None) -> Path | None:
+    """The newest full run of the committed settings that passes the gate, graded by the same
+    judge: what a new run is compared with. A regression is only measured with the same ruler;
+    variant runs and failing runs are never a baseline."""
     passing = None
     for path in reports(directory):
         report = json.loads(path.read_text())
-        if report.get("label"):
+        if report.get("label") or (judge is not None and report.get("judge") != judge):
             continue
         baseline = (
             summarise(json.loads((directory / report["baseline"]).read_text())["results"])
