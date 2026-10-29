@@ -16,7 +16,7 @@
 # with the same protections as the services, and secrets come from the env files through
 # systemd, never on a command line.
 #
-# To go back by hand, run this with the sha of an earlier release still in releases/.
+# To go back by hand, run this with the sha of the release before, which is kept in releases/.
 
 set -euo pipefail
 
@@ -24,7 +24,6 @@ BASE=/var/www/kaskazi.jeffgicharu.com
 HOST=kaskazi.jeffgicharu.com
 ENV_DIR=$BASE/shared/env
 NGINX_DIR=/etc/nginx/kaskazi
-KEEP_RELEASES=3
 
 sha="${SSH_ORIGINAL_COMMAND:-${1:-}}"
 if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
@@ -294,10 +293,17 @@ sudo -n systemctl stop "kaskazi-api@$live.service" "kaskazi-gateway@$live.servic
 
 # --- Tidy up -----------------------------------------------------------------------------------
 
-echo "Keeping the newest $KEEP_RELEASES releases"
+# Two releases are kept: this one, and the one that was live before it, for going back by hand.
+# Everything else goes, uploads that never went live first among them.
+previous="${live_release##*/}"
+if [[ -n "$previous" ]]; then
+    echo "Keeping release $short and the release before it, ${previous:0:7}"
+else
+    echo "Keeping release $short"
+fi
 cd "$BASE/releases"
-ls -1t | tail -n +$((KEEP_RELEASES + 1)) | while read -r old; do
-    [[ "$old" =~ ^[0-9a-f]{40}$ && "$old" != "$sha" && "$BASE/releases/$old" != "$live_release" ]] || continue
+for old in *; do
+    [[ "$old" =~ ^[0-9a-f]{40}$ && "$old" != "$sha" && "$old" != "$previous" ]] || continue
     rm -rf -- "${BASE:?}/releases/$old"
 done
 

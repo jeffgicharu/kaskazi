@@ -81,3 +81,10 @@ def test_activation_refuses_anything_but_a_real_release_folder() -> None:
     assert '[[ ! -d "$release" || -L "$release" ]]' in script
     assert "-perm /022" in script and "readlink -f" in script
     assert script.index("flock -n 9") < script.index("nginx -t")
+
+
+def test_activation_keeps_only_this_release_and_the_one_before() -> None:
+    script = (DEPLOY / "activate.sh").read_text()
+    assert "KEEP_RELEASES" not in script  # no count: releases that never went live go too
+    assert 'previous="${live_release##*/}"' in script
+    assert '"$old" != "$sha" && "$old" != "$previous"' in script
