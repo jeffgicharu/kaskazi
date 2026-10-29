@@ -1,5 +1,4 @@
-import "@fontsource-variable/fraunces";
-import "@fontsource-variable/atkinson-hyperlegible-next";
+import "./styles/fonts.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
