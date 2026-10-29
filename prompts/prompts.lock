@@ -8,6 +8,12 @@
     "1.0.0": "38aa31cfd5f316ba8c9832c71636a011b25129e3a936a2db3a9a08ff525ec2dc",
     "1.1.0": "6f983dbf8117a7bb65a8c121bf9c5135d6c1440422203fa91ab005526b946849"
   },
+  "documents.extract_image": {
+    "1.0.0": "cef6e360a73e5295a8a1a032dd92acdf1b2cfecc9eb87a932b383f6b1d0575e5"
+  },
+  "documents.extract_text": {
+    "1.0.0": "9d70f24a6fcd2cec13b3e24d7dce28278ae2625221e2ff5727706f21d65ad7d9"
+  },
   "evals.judge": {
     "1.0.0": "443188f80bd9edf4c8e77c1df5ea967deb8c2a646e8002490e677f17495aad3f",
     "1.1.0": "271cd428bd73b0e5b5fbbcf581a3a9c326ea70252724533779148b244754258b",

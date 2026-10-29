@@ -16,3 +16,4 @@ __pycache__/
 /evals/runs/
 /.build-cache/
 /web/*.tsbuildinfo
+/samples/

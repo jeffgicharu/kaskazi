@@ -1,0 +1,46 @@
+# Kenya's statutory deductions from monthly pay, for checking payslips.
+#
+# Every figure names where it was read and when. A payslip whose pay period starts before
+# `checked_from` is not checked against these rates: the check says the rates in force then are
+# not on file, rather than judging it by the wrong ones.
+
+checked_from = 2026-02-01  # NSSF Year 4 limits; every other rate here was already in force
+
+[paye]
+source = "Kenya Revenue Authority, 'PAYE', https://www.kra.go.ke/en/individual/filing-paying/types-of-taxes/paye"
+read_on = 2026-10-29
+in_force_from = 2023-07-01  # "as per Finance Act 2023 ... effective 1st July 2023"
+personal_relief = 2400  # a month
+# Monthly bands: 10% on the first 24,000; 25% on the next 8,333; 30% on the next 467,667;
+# 32.5% on the next 300,000; 35% above 800,000.
+bands = [
+  { up_to = 24000, rate = 10.0 },
+  { up_to = 32333, rate = 25.0 },
+  { up_to = 500000, rate = 30.0 },
+  { up_to = 800000, rate = 32.5 },
+  { rate = 35.0 },
+]
+# Allowable deductions before tax, from the same page: the Affordable Housing Levy, SHIF
+# contributions, and contributions to a registered pension fund up to 30,000 a month (NSSF is
+# one, under the NSSF Act 2013).
+pension_deduction_limit = 30000
+
+[shif]
+source = "Social Health Insurance (General) Regulations, 2024, gazetted 8 March 2024; confirmed in EY's tax alert 'Kenya employers to begin making contributions to Social Health Insurance Fund', 25 September 2024, https://www.ey.com/en_gl/technical/tax-alerts/kenya-employers-to-begin-making-contributions-to-social-health-insurance-fund"
+read_on = 2026-10-29
+note = "SHA's own page (https://sha.go.ke/premium-rates) refuses automated reading. The Acts have been litigated: the High Court declared them unconstitutional and the Court of Appeal stayed that ruling pending the appeal, so they remain in force."
+rate = 2.75  # % of gross monthly salary
+minimum = 300  # a month; no maximum
+
+[housing_levy]
+source = "Kenya Revenue Authority, 'PAYE', https://www.kra.go.ke/en/individual/filing-paying/types-of-taxes/paye (Affordable Housing Act, 2024)"
+read_on = 2026-10-29
+rate = 1.5  # % of gross monthly salary, from the employee (and as much again from the employer)
+
+[nssf]
+source = "National Social Security Fund, 'Notice to Employers - Year 4 (2026) NSSF Contribution Rates', posted 18 February 2026, https://www.nssf.or.ke/notice-to-employers-year-4-2026-nssf-contribution-rates"
+read_on = 2026-10-29
+in_force_from = 2026-02-01
+rate = 6.0  # % from the employee, and as much again from the employer
+lower_earnings_limit = 9000  # Tier I: 6% of the first 9,000 (540)
+upper_earnings_limit = 108000  # Tier II: 6% of earnings from 9,000 to 108,000 (at most 5,940)

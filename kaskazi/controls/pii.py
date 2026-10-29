@@ -270,6 +270,23 @@ def restore(text: str, vault: Vault) -> Restored:
     return Restored(PLACEHOLDER.sub(sub, text), unknown)
 
 
+def unmask(text: str, vault: Vault) -> Restored:
+    """Replaces placeholders with the values behind them, in full. Only for the bank's own
+    records, such as the fields read from a customer's document; anything shown to a person goes
+    through `restore`, which shows the display form."""
+
+    unknown: list[str] = []
+
+    def sub(m: re.Match[str]) -> str:
+        entry = vault.value(m.group(0))
+        if entry is None:
+            unknown.append(m.group(0))
+            return "[hidden]"
+        return entry[1]
+
+    return Restored(PLACEHOLDER.sub(sub, text), unknown)
+
+
 def find_unmasked(texts: Iterable[str]) -> list[Kind]:
     """The gateway's check: the kinds of personal data still present in an outgoing payload."""
 
