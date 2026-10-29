@@ -68,9 +68,10 @@ async def ask(api: httpx.AsyncClient, release: str, case: dict[str, Any]) -> dic
     from kaskazi.release.check import SessionCookies
 
     cookies = SessionCookies()
+    # A client of its own, connections and all: closing one that shared the check's transport
+    # would close the pool under the other questions still being asked.
     async with httpx.AsyncClient(
         base_url=api.base_url,
-        transport=api._transport,  # the check's own transport (an in-process app in the tests)
         timeout=60,
         event_hooks={"request": [cookies.on_request], "response": [cookies.on_response]},
     ) as client:

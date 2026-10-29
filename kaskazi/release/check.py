@@ -119,7 +119,7 @@ async def run_checks(*, api: str, gateway: str, release: str, stand_in: bool = F
                 message = await check(api_client, gateway_client, release)
             except Exception as exc:
                 ok = False
-                print(f"FAIL {check.__name__}: {exc}")
+                print(f"FAIL {check.__name__}: {type(exc).__name__}: {exc}")
                 break
             print(f"ok   {message}")
     return ok

@@ -22,7 +22,8 @@ gateway=$!
 
 export KASKAZI_SITE_URL=http://localhost:5173
 export KASKAZI_DATABASE_URL="$(printf "$DB" kaskazi_app)"
-export KASKAZI_SECRET="$(openssl rand -hex 32)" KASKAZI_VAULT_KEY="$(openssl rand -base64 32)"
+# A secret from the environment lets the release check run against this stack.
+export KASKAZI_SECRET="${KASKAZI_SECRET:-$(openssl rand -hex 32)}" KASKAZI_VAULT_KEY="$(openssl rand -base64 32)"
 export KASKAZI_GATEWAY_URL=http://127.0.0.1:8802 KASKAZI_API_PORT=8800
 export KASKAZI_COPIES_PER_HOUR=1000 KASKAZI_COPIES_PER_DAY=1000
 .venv/bin/python -m kaskazi.api serve &
