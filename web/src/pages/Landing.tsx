@@ -14,8 +14,6 @@ const ROLES = [
   { key: "ai_lead", title: "AI lead", action: "Open as the AI lead", text: "Read the audit trail, monitor spending and quality, and see every evaluation and prompt." },
 ] as const;
 
-const CODE = "https://github.com/jeffgicharu/kaskazi";
-
 export function Landing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -71,9 +69,6 @@ export function Landing() {
                   Choose a customer
                 </a>
               </div>
-              <p className="hero-code">
-                <a href={CODE}>The code, the tests and every evaluation are on GitHub</a>
-              </p>
             </div>
             <Showcase />
           </div>
@@ -145,7 +140,7 @@ export function Landing() {
               <div>
                 <h3>Real</h3>
                 <ul>
-                  <li>The AI models: Claude, with OpenAI taking over if Claude fails.</li>
+                  <li>The AI models, with a second provider taking over if the first fails.</li>
                   <li>The controls: masking, injection screening, confirmations, spending caps.</li>
                   <li>The audit trail, which can't be edited.</li>
                 </ul>
@@ -163,9 +158,7 @@ export function Landing() {
         </div>
       </main>
       <footer className="site-footer">
-        <p>
-          Built with Claude and OpenAI models, FastAPI, PostgreSQL and React. <a href={CODE}>Source on GitHub</a>.
-        </p>
+        <p>© 2026 Kaskazi</p>
       </footer>
     </>
   );

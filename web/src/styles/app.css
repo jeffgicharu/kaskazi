@@ -203,17 +203,6 @@
   box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
-.hero-code {
-  margin-top: var(--space-5);
-  font-size: 0.95rem;
-}
-
-.hero-code a,
-.site-footer a {
-  color: var(--accent-ink);
-  text-underline-offset: 3px;
-}
-
 @media (max-width: 960px) {
   .hero-inner {
     grid-template-columns: minmax(0, 1fr);
