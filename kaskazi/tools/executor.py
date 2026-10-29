@@ -212,6 +212,9 @@ class Executor:
                     {
                         "ref": ref,
                         "name": r["name"],
+                        # Masked like the customer's own words, so "send 500 to Rose" and the
+                        # saved "Rose Kiprop" share a placeholder the model can match.
+                        "first_name": r["name"].split()[0],
                         "kind": r["kind"],
                         "phone": r["phone"],
                         "account_number": r["account_number"],

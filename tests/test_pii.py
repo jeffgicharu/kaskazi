@@ -93,6 +93,18 @@ def test_known_names_are_masked() -> None:
     assert masked.text == "Pay [NAME_1] 500 bob"
 
 
+def test_a_first_name_typed_and_a_saved_recipients_first_name_share_a_placeholder() -> None:
+    # Found by the golden set: "send 500 to Rose" and the saved "Rose Kiprop" masked to different
+    # placeholders, so the model couldn't tell they were the same person.
+    import json
+
+    vault, names = Vault(), ["Rose Kiprop", "Rose", "Kiprop"]
+    typed = mask("send 500 to Rose", vault, names).text
+    saved = mask(json.dumps({"name": "Rose Kiprop", "first_name": "Rose"}), vault, names).text
+    assert typed == "send 500 to [NAME_1]"
+    assert json.loads(saved) == {"name": "[NAME_2]", "first_name": "[NAME_1]"}
+
+
 def test_secrets_and_card_numbers_raise_the_warning_flags() -> None:
     masked = mask("my card is 4111111111111111 and pin 1234", Vault())
     assert masked.card_number_shared and masked.secret_shared
