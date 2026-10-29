@@ -53,6 +53,15 @@ def test_figures_are_read_in_all_their_forms() -> None:
     assert (1250, "amount") in found and (2.5, "percent") in found and (5, "period") in found
 
 
+def test_the_customers_shorthand_supports_the_full_figure() -> None:
+    # Found by the consistency run: "80k" from the customer, "KES 80,000" in the answer.
+    asked = "the app is refusing to send them 80k. why??"
+    assert check("You can't send KES 80,000 to a new recipient today.", [asked]).ok
+    assert check("A loan of KES 1,500,000 or 2 million", ["between 1.5m and 2 million"]).ok
+    assert check("Paid at 10am, KES 500 a month", ["KES 500"]).ok
+    assert check("KES 80,000", ["80 cards"]).unsupported == ["KES 80,000"]
+
+
 def test_an_answer_with_a_figure_from_nowhere_fails() -> None:
     passage = "Sending KES 1,001 to KES 10,000 to a mobile money wallet costs KES 35."
     assert check("It costs KES 35 to send KES 5,000.", [passage, "send 5,000 to mobile money"]).ok

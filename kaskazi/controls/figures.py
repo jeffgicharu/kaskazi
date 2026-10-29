@@ -14,15 +14,19 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
-# Amounts with or without "KES"/"Ksh", with thousands separators and decimals; percentages;
-# bare numbers with a unit (days, months, years, hours, minutes, times); and plain numbers of
-# 3+ digits. Small bare numbers ("2 cards", "step 3") are left alone.
+# Amounts with or without "KES"/"Ksh", with thousands separators and decimals, and in the
+# shorthand customers write ("80k", "1.5m", "2 million"); percentages; bare numbers with a unit
+# (days, months, years, hours, minutes, times); and plain numbers of 3+ digits. Small bare
+# numbers ("2 cards", "step 3") are left alone.
 _NUMBER = re.compile(
     r"(?i)(?:(?:kes|ksh|kshs|sh|usd|gbp|eur)\.?\s?)?"
     r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?"
+    r"(?:(k|m|mn|bn)(?![a-z])|\s(thousand|million|billion)\b)?"
     r"(\s?%|\s?(?:per\s?cent|percent))?"
     r"(\s?(?:working\s+)?(?:days?|months?|years?|hours?|minutes?|weeks?|times))?"
 )
+_TIMES = {"k": 1_000, "thousand": 1_000, "m": 10**6, "mn": 10**6, "million": 10**6}
+_TIMES |= {"bn": 10**9, "billion": 10**9}
 _ALWAYS_FINE = {Decimal(n) for n in range(0, 13)}  # small counts, months of the year
 _PLACEHOLDER = re.compile(r"\[[A-Z_]+_\d+\]")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b")
@@ -40,17 +44,19 @@ def figures(text: str) -> list[Figure]:
     text = _DATE.sub(" ", text)
     out: list[Figure] = []
     for m in _NUMBER.finditer(text):
-        whole, frac, percent, unit = m.group(1), m.group(2), m.group(3), m.group(4)
+        whole, frac, percent, unit = m.group(1), m.group(2), m.group(5), m.group(6)
+        times = (m.group(3) or m.group(4) or "").lower()
         try:
             value = Decimal(whole.replace(",", "") + (f".{frac}" if frac else ""))
         except InvalidOperation:
             continue
+        value *= _TIMES.get(times, 1)
         has_currency = bool(re.match(r"(?i)(kes|ksh|kshs|sh|usd|gbp|eur)", m.group(0)))
         if percent:
             kind = "percent"
         elif unit:
             kind = "period"
-        elif has_currency or "," in whole or frac:
+        elif has_currency or times or "," in whole or frac:
             kind = "amount"
         else:
             kind = "number"
